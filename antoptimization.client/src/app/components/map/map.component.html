@@ -155,16 +155,34 @@
           <i class="bi bi-lightning-charge"></i>
           <span>Otimização</span>
         </div>
+        <div class="toggle-row">
+          <label class="toggle">
+            <input type="checkbox" [(ngModel)]="visualMode" [disabled]="isOptimizing">
+            <span class="toggle-slider"></span>
+          </label>
+          <div class="toggle-info">
+            <span class="toggle-label"><i class="bi bi-bug"></i> Modo visual</span>
+            <span class="toggle-hint">Exibe as formigas explorando rotas</span>
+          </div>
+        </div>
         <button class="btn btn-primary btn-block"
                 [disabled]="isOptimizing || locations.length < 2"
                 (click)="optimizeRoute()">
           <ng-container *ngIf="!isOptimizing">
             <i class="bi bi-play-fill"></i> Otimizar rota
           </ng-container>
-          <ng-container *ngIf="isOptimizing">
+          <ng-container *ngIf="isOptimizing && !isVisualizing">
             <i class="bi bi-arrow-repeat spin"></i> Processando...
           </ng-container>
+          <ng-container *ngIf="isVisualizing">
+            <i class="bi bi-arrow-repeat spin"></i> Iteração {{ currentIteration }}/{{ totalIterations }}
+          </ng-container>
         </button>
+        <div class="visual-progress" *ngIf="isVisualizing">
+          <div class="progress-track">
+            <div class="progress-fill" [style.width.%]="totalIterations > 0 ? (currentIteration / totalIterations) * 100 : 0"></div>
+          </div>
+        </div>
         <p class="help-text" *ngIf="locations.length < 2">
           Adicione pelo menos 2 pontos para otimizar.
         </p>

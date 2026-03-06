@@ -4,7 +4,7 @@ import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/o
 import * as L from 'leaflet';
 import { RouteService } from '../../services/route.service';
 import { GeocodingService } from '../../services/geocoding.service';
-import { LocationDto } from '../../models/route.models';
+import { LocationDto, IterationEvent } from '../../models/route.models';
 import { GeocodingResult } from '../../models/geocoding.models';
 
 @Component({
@@ -36,6 +36,14 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   locating = false;
   activeTab: 'map' | 'points' | 'tools' = 'map';
 
+  visualMode = false;
+  isVisualizing = false;
+  currentIteration = 0;
+  totalIterations = 0;
+  private antLayers: L.Polyline[] = [];
+  private bestIterationLayer?: L.Polyline;
+  private visualAbort?: () => void;
+
   constructor(
     private routeService: RouteService,
     private geocodingService: GeocodingService
@@ -60,6 +68,9 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.visualAbort) {
+      this.visualAbort();
+    }
     this.destroy$.next();
     this.destroy$.complete();
     this.map?.remove();
@@ -158,6 +169,11 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     this.errorMessage = null;
     this.isOptimizing = true;
 
+    if (this.visualMode) {
+      this.optimizeRouteVisual();
+      return;
+    }
+
     this.routeService.optimizeRoute({
       locations: this.locations,
       startLocationIndex: this.startIndex ?? undefined
@@ -175,6 +191,73 @@ export class MapComponent implements AfterViewInit, OnDestroy {
         console.error(err);
       }
     });
+  }
+
+  private optimizeRouteVisual(): void {
+    this.isVisualizing = true;
+    this.currentIteration = 0;
+    this.totalIterations = 0;
+    this.clearRoute();
+
+    const subscription = this.routeService.optimizeRouteVisual({
+      locations: this.locations,
+      startLocationIndex: this.startIndex ?? undefined
+    }).subscribe({
+      next: (event) => {
+        if (event.type === 'iteration') {
+          this.currentIteration = event.iteration + 1;
+          this.totalIterations = event.totalIterations;
+          this.renderIteration(event);
+        } else if (event.type === 'result') {
+          this.clearIterationVisuals();
+          this.isOptimizing = false;
+          this.isVisualizing = false;
+          this.totalDistance = event.totalDistance;
+          this.bestRouteOrder = event.bestRouteOrder;
+          this.drawRoute(event.routeCoordinates);
+          this.updateMarkerLabels(event.bestRouteOrder);
+        }
+      },
+      error: (err) => {
+        this.clearIterationVisuals();
+        this.isOptimizing = false;
+        this.isVisualizing = false;
+        this.errorMessage = 'Erro ao otimizar rota. Tente novamente.';
+        console.error(err);
+      }
+    });
+
+    this.visualAbort = () => subscription.unsubscribe();
+  }
+
+  private renderIteration(event: IterationEvent): void {
+    this.clearIterationVisuals();
+
+    for (const tour of event.antTours) {
+      const latLngs: L.LatLngExpression[] = tour.map(i => [this.locations[i].lat, this.locations[i].lng]);
+      const line = L.polyline(latLngs, {
+        color: '#94a3b8',
+        weight: 1.5,
+        opacity: 0.3
+      }).addTo(this.map);
+      this.antLayers.push(line);
+    }
+
+    const bestLatLngs: L.LatLngExpression[] = event.bestTourSoFar.map(i => [this.locations[i].lat, this.locations[i].lng]);
+    this.bestIterationLayer = L.polyline(bestLatLngs, {
+      color: '#f59e0b',
+      weight: 3,
+      opacity: 0.85
+    }).addTo(this.map);
+  }
+
+  private clearIterationVisuals(): void {
+    this.antLayers.forEach(l => this.map.removeLayer(l));
+    this.antLayers = [];
+    if (this.bestIterationLayer) {
+      this.map.removeLayer(this.bestIterationLayer);
+      this.bestIterationLayer = undefined;
+    }
   }
 
   private drawRoute(coordinates: LocationDto[]): void {
@@ -215,11 +298,18 @@ export class MapComponent implements AfterViewInit, OnDestroy {
       this.map.removeLayer(this.routeLayer);
       this.routeLayer = undefined;
     }
+    this.clearIterationVisuals();
     this.totalDistance = null;
     this.bestRouteOrder = [];
   }
 
   clearAll(): void {
+    if (this.visualAbort) {
+      this.visualAbort();
+      this.visualAbort = undefined;
+    }
+    this.isOptimizing = false;
+    this.isVisualizing = false;
     this.markers.forEach(m => this.map.removeLayer(m));
     this.markers = [];
     this.locations = [];
