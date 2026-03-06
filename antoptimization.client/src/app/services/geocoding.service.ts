@@ -57,17 +57,21 @@ export class GeocodingService {
 
   constructor(private http: HttpClient) {}
 
-  search(query: string): Observable<GeocodingResult[]> {
+  search(query: string, viewbox?: { west: number; south: number; east: number; north: number }): Observable<GeocodingResult[]> {
     if (!query || query.trim().length < 3) {
       return of([]);
     }
 
-    const params = {
+    const params: Record<string, string> = {
       q: query.trim(),
       format: 'json',
       addressdetails: '1',
       limit: '5'
     };
+
+    if (viewbox) {
+      params['viewbox'] = `${viewbox.west},${viewbox.north},${viewbox.east},${viewbox.south}`;
+    }
 
     return this.http.get<NominatimResult[]>(this.baseUrl, { params }).pipe(
       map(results => results.map(r => this.parseResult(r))),
