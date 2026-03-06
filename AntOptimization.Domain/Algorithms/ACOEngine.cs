@@ -41,6 +41,49 @@ public class ACOEngine
         return (bestTour, bestDistance);
     }
 
+    public (List<int> BestTour, double BestDistance, List<IterationSnapshot> History) SolveWithHistory(double[,] distanceMatrix, int? fixedStartCity = null)
+    {
+        int numberOfCities = distanceMatrix.GetLength(0);
+        var colony = new Colony(_parameters.NumberOfAnts, numberOfCities);
+
+        List<int> bestTour = [];
+        double bestDistance = double.MaxValue;
+        var history = new List<IterationSnapshot>(_parameters.Iterations);
+
+        for (int iteration = 0; iteration < _parameters.Iterations; iteration++)
+        {
+            var antTours = new List<List<int>>(_parameters.NumberOfAnts);
+
+            foreach (var ant in colony.Ants)
+            {
+                BuildTour(ant, colony.PheromoneMatrix, distanceMatrix, numberOfCities, fixedStartCity);
+
+                if (ant.TourDistance < bestDistance)
+                {
+                    bestDistance = ant.TourDistance;
+                    bestTour = new List<int>(ant.Tour);
+                }
+
+                antTours.Add(new List<int>(ant.Tour));
+            }
+
+            history.Add(new IterationSnapshot(
+                iteration,
+                new List<int>(bestTour),
+                bestDistance,
+                antTours
+            ));
+
+            EvaporatePheromones(colony.PheromoneMatrix, numberOfCities);
+            UpdatePheromones(colony);
+
+            foreach (var ant in colony.Ants)
+                ant.Reset();
+        }
+
+        return (bestTour, bestDistance, history);
+    }
+
     private void BuildTour(Ant ant, double[,] pheromones, double[,] distances, int numberOfCities, int? fixedStartCity)
     {
         int startCity = fixedStartCity ?? _random.Next(numberOfCities);
