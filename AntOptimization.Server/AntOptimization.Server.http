@@ -1,0 +1,6 @@
+@AntOptimization.Server_HostAddress = http://localhost:5230
+
+GET {{AntOptimization.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

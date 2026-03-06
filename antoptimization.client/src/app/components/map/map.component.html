@@ -1,0 +1,210 @@
+<div class="app-container">
+  <header class="app-header">
+    <div class="header-content">
+      <div class="header-brand">
+        <i class="bi bi-diagram-3-fill header-logo"></i>
+        <div>
+          <h1>Route Optimizer</h1>
+          <p class="header-subtitle">Ant Colony Optimization &middot; OpenStreetMap</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="content-wrapper">
+    <!-- LEFT PANEL (desktop) / POINTS TAB (mobile) -->
+    <aside class="left-panel" [class.mobile-visible]="activeTab === 'points'">
+      <div class="panel-header">
+        <div class="panel-title">
+          <i class="bi bi-list-ol"></i>
+          <span>Pontos da rota</span>
+        </div>
+        <span class="badge">{{ locations.length }}</span>
+      </div>
+
+      <div class="points-list" *ngIf="locations.length > 0">
+        <div *ngFor="let loc of locations; let i = index"
+             class="point-item"
+             [class.point-start]="i === startIndex"
+             (click)="focusPoint(i); switchTab('map')">
+          <div class="point-indicator">
+            <i class="bi bi-flag-fill" *ngIf="i === startIndex"></i>
+            <span *ngIf="i !== startIndex">{{ i + 1 }}</span>
+          </div>
+          <div class="point-details">
+            <span class="point-label">
+              <ng-container *ngIf="i === startIndex">Partida</ng-container>
+              <ng-container *ngIf="i !== startIndex">Ponto {{ i + 1 }}</ng-container>
+            </span>
+            <span class="point-coords">{{ loc.lat.toFixed(5) }}, {{ loc.lng.toFixed(5) }}</span>
+            <span class="point-optimized-pos" *ngIf="getOptimizedPosition(i) as pos">
+              <i class="bi bi-arrow-right-short"></i> {{ pos }}ª parada
+            </span>
+          </div>
+          <div class="point-actions" (click)="$event.stopPropagation()">
+            <button class="icon-btn" title="Definir como partida"
+                    *ngIf="i !== startIndex"
+                    (click)="setAsStart(i)">
+              <i class="bi bi-flag"></i>
+            </button>
+            <button class="icon-btn" title="Localizar no mapa"
+                    (click)="focusPoint(i); switchTab('map')">
+              <i class="bi bi-crosshair"></i>
+            </button>
+            <button class="icon-btn icon-btn-danger" title="Remover"
+                    (click)="removePoint(i)">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="locations.length === 0">
+        <i class="bi bi-geo-alt empty-icon"></i>
+        <p class="empty-title">Nenhum ponto adicionado</p>
+        <p class="empty-hint">Clique no mapa ou pesquise um local</p>
+      </div>
+
+      <div class="left-panel-footer" *ngIf="locations.length > 0">
+        <button class="btn btn-sm btn-ghost" (click)="fitAllPoints(); switchTab('map')">
+          <i class="bi bi-fullscreen"></i> Ver todos
+        </button>
+        <button class="btn btn-sm btn-ghost btn-ghost-danger"
+                [disabled]="isOptimizing"
+                (click)="clearAll()">
+          <i class="bi bi-trash3"></i> Limpar
+        </button>
+      </div>
+
+      <div class="optimization-result" *ngIf="totalDistance !== null">
+        <div class="result-header">
+          <i class="bi bi-graph-up"></i>
+          <span>Resultado</span>
+        </div>
+        <div class="result-card">
+          <div class="result-metric">
+            <span class="metric-label">Distância total</span>
+            <span class="metric-value">{{ totalDistance }} km</span>
+          </div>
+          <div class="result-divider"></div>
+          <div class="result-metric">
+            <span class="metric-label">Ordem otimizada</span>
+            <div class="route-order">
+              <span *ngFor="let idx of bestRouteOrder; let last = last"
+                    class="order-badge">
+                {{ idx + 1 }}<i class="bi bi-chevron-right" *ngIf="!last"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-export" (click)="exportToGoogleMaps()">
+          <i class="bi bi-box-arrow-up-right"></i> Abrir no Google Maps
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAP (always rendered, visibility toggled on mobile) -->
+    <main class="map-container" [class.mobile-visible]="activeTab === 'map'">
+      <div id="map"></div>
+      <button class="map-locate-btn"
+              [class.locating]="locating"
+              [disabled]="locating"
+              title="Ir para minha localização"
+              (click)="goToMyLocation()">
+        <i class="bi" [ngClass]="locating ? 'bi-arrow-repeat spin' : 'bi-crosshair'"></i>
+      </button>
+    </main>
+
+    <!-- RIGHT PANEL (desktop) / TOOLS TAB (mobile) -->
+    <aside class="controls-panel" [class.mobile-visible]="activeTab === 'tools'">
+      <div class="panel-section">
+        <div class="section-title">
+          <i class="bi bi-search"></i>
+          <span>Pesquisar local</span>
+        </div>
+        <div class="search-wrapper">
+          <i class="bi bi-search search-icon-left"></i>
+          <input type="text"
+                 class="search-input"
+                 placeholder="Endereço, local ou cidade..."
+                 [(ngModel)]="searchQuery"
+                 (input)="onSearchInput()"
+                 (blur)="hideSearchResults()" />
+          <i class="bi bi-arrow-repeat search-spinner" *ngIf="isSearching"></i>
+        </div>
+        <ul class="search-results" *ngIf="showResults">
+          <li *ngFor="let result of searchResults"
+              (mousedown)="selectSearchResult(result); switchTab('map')">
+            <i class="bi bi-geo-alt result-icon"></i>
+            <div class="result-content">
+              <span class="result-name">{{ result.name }}</span>
+              <span class="result-type">{{ result.type }}</span>
+              <span class="result-address">{{ result.address }}</span>
+            </div>
+          </li>
+        </ul>
+        <button class="btn btn-success btn-block"
+                *ngIf="hasSearchMarker"
+                (click)="addSearchResultAsPoint(); switchTab('map')">
+          <i class="bi bi-plus-lg"></i> Adicionar como ponto
+        </button>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-title">
+          <i class="bi bi-lightning-charge"></i>
+          <span>Otimização</span>
+        </div>
+        <button class="btn btn-primary btn-block"
+                [disabled]="isOptimizing || locations.length < 2"
+                (click)="optimizeRoute()">
+          <ng-container *ngIf="!isOptimizing">
+            <i class="bi bi-play-fill"></i> Otimizar rota
+          </ng-container>
+          <ng-container *ngIf="isOptimizing">
+            <i class="bi bi-arrow-repeat spin"></i> Processando...
+          </ng-container>
+        </button>
+        <p class="help-text" *ngIf="locations.length < 2">
+          Adicione pelo menos 2 pontos para otimizar.
+        </p>
+      </div>
+
+      <div class="alert alert-danger" *ngIf="errorMessage">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span>{{ errorMessage }}</span>
+      </div>
+
+      <div class="panel-section instructions">
+        <div class="section-title">
+          <i class="bi bi-info-circle"></i>
+          <span>Como usar</span>
+        </div>
+        <ol>
+          <li>Pesquise um local ou clique diretamente no mapa</li>
+          <li>O primeiro ponto será definido como partida</li>
+          <li>Gerencie os pontos pelo painel esquerdo</li>
+          <li>Clique em <strong>Otimizar rota</strong></li>
+          <li>Visualize a melhor rota no mapa</li>
+        </ol>
+      </div>
+    </aside>
+  </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-nav">
+    <button class="nav-item" [class.active]="activeTab === 'points'" (click)="switchTab('points')">
+      <i class="bi bi-list-ol"></i>
+      <span>Pontos</span>
+      <span class="nav-badge" *ngIf="locations.length > 0">{{ locations.length }}</span>
+    </button>
+    <button class="nav-item" [class.active]="activeTab === 'map'" (click)="switchTab('map')">
+      <i class="bi bi-map"></i>
+      <span>Mapa</span>
+    </button>
+    <button class="nav-item" [class.active]="activeTab === 'tools'" (click)="switchTab('tools')">
+      <i class="bi bi-sliders"></i>
+      <span>Ferramentas</span>
+    </button>
+  </nav>
+</div>

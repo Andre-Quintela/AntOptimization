@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/1 - WebApplication/">
+    <Project Path="antoptimization.client/antoptimization.client.esproj">
+      <Build />
+      <Deploy />
+    </Project>
+  </Folder>
+  <Folder Name="/2- API/">
+    <Project Path="AntOptimization.Server/AntOptimization.Server.csproj" />
+  </Folder>
+  <Folder Name="/3 - CORE/">
+    <Project Path="AntOptimization.Domain/AntOptimization.Domain.csproj" />
+    <Project Path="AntOptimization.Services/AntOptimization.Services.csproj" />
+  </Folder>
+  <Folder Name="/4 - Infrastructure/">
+    <Project Path="AntOptimization.Infrastructure/AntOptimization.Infrastructure.csproj" />
+    <Project Path="AntOptimization.IoC/AntOptimization.IoC.csproj" />
+  </Folder>
+</Solution>
