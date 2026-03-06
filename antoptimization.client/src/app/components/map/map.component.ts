@@ -100,6 +100,8 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     document.addEventListener('setStart', ((e: CustomEvent) => {
       this.setAsStart(e.detail);
     }) as EventListener);
+
+    this.goToMyLocation();
   }
 
   goToMyLocation(): void {
