@@ -18,7 +18,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseDefaultFiles();
 app.MapStaticAssets();
 
 if (app.Environment.IsDevelopment())
