@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import * as L from 'leaflet';
@@ -18,6 +18,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private routeLayer?: L.Polyline;
   private searchMarker?: L.Marker;
   private destroy$ = new Subject<void>();
+  @ViewChild('toolsPanel') private toolsPanelRef!: ElementRef<HTMLElement>;
 
   locations: LocationDto[] = [];
   startIndex: number | null = null;
@@ -34,7 +35,12 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private searchSubject$ = new Subject<string>();
 
   locating = false;
-  activeTab: 'map' | 'points' | 'tools' = 'map';
+  activeTab: 'map' | 'points' = 'map';
+  toolsOpen = false;
+  private drawerDragStartY = 0;
+  private drawerDragDeltaY = 0;
+  private drawerIsDragging = false;
+  private drawerDragStartTime = 0;
 
   visualMode = false;
   isVisualizing = false;
@@ -363,11 +369,52 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     this.map.fitBounds(group.getBounds(), { padding: [50, 50] });
   }
 
-  switchTab(tab: 'map' | 'points' | 'tools'): void {
+  switchTab(tab: 'map' | 'points'): void {
     this.activeTab = tab;
+    if (tab !== 'map') {
+      this.toolsOpen = false;
+    }
     if (tab === 'map') {
       setTimeout(() => this.map.invalidateSize(), 50);
     }
+  }
+
+  toggleTools(): void {
+    this.toolsOpen = !this.toolsOpen;
+  }
+
+  onDrawerDragStart(event: TouchEvent): void {
+    if (!this.toolsOpen) return;
+    this.drawerIsDragging = true;
+    this.drawerDragStartY = event.touches[0].clientY;
+    this.drawerDragDeltaY = 0;
+    this.drawerDragStartTime = Date.now();
+    const el = this.toolsPanelRef?.nativeElement;
+    if (el) el.style.transition = 'none';
+  }
+
+  onDrawerDragMove(event: TouchEvent): void {
+    if (!this.drawerIsDragging) return;
+    const delta = Math.max(0, event.touches[0].clientY - this.drawerDragStartY);
+    this.drawerDragDeltaY = delta;
+    const el = this.toolsPanelRef?.nativeElement;
+    if (el) el.style.transform = `translateY(${delta}px)`;
+  }
+
+  onDrawerDragEnd(): void {
+    if (!this.drawerIsDragging) return;
+    this.drawerIsDragging = false;
+    const el = this.toolsPanelRef?.nativeElement;
+    if (!el) return;
+    const elapsed = Date.now() - this.drawerDragStartTime;
+    const velocity = elapsed > 0 ? this.drawerDragDeltaY / elapsed : 0;
+    const shouldClose = this.drawerDragDeltaY > 80 || velocity > 0.4;
+    el.style.transition = '';
+    el.style.transform = shouldClose ? 'translateY(100%)' : 'translateY(0)';
+    el.addEventListener('transitionend', () => {
+      el.style.transform = '';
+      if (shouldClose) this.toolsOpen = false;
+    }, { once: true });
   }
 
   getOptimizedPosition(originalIndex: number): number | null {

@@ -113,10 +113,20 @@
               (click)="goToMyLocation()">
         <i class="bi" [ngClass]="locating ? 'bi-arrow-repeat spin' : 'bi-crosshair'"></i>
       </button>
+      <button class="map-tools-btn" (click)="toggleTools()" title="Ferramentas">
+        <i class="bi bi-sliders"></i>
+      </button>
     </main>
 
-    <!-- RIGHT PANEL (desktop) / TOOLS TAB (mobile) -->
-    <aside class="controls-panel" [class.mobile-visible]="activeTab === 'tools'">
+    <!-- RIGHT PANEL (desktop) / TOOLS DRAWER (mobile) -->
+    <aside class="controls-panel" [class.tools-drawer-open]="toolsOpen" #toolsPanel>
+      <div class="drawer-handle"
+           (click)="toggleTools()"
+           (touchstart)="onDrawerDragStart($event)"
+           (touchmove)="onDrawerDragMove($event)"
+           (touchend)="onDrawerDragEnd()">
+        <div class="drawer-pill"></div>
+      </div>
       <div class="panel-section">
         <div class="section-title">
           <i class="bi bi-search"></i>
@@ -222,10 +232,6 @@
     <button class="nav-item" [class.active]="activeTab === 'map'" (click)="switchTab('map')">
       <i class="bi bi-map"></i>
       <span>Mapa</span>
-    </button>
-    <button class="nav-item" [class.active]="activeTab === 'tools'" (click)="switchTab('tools')">
-      <i class="bi bi-sliders"></i>
-      <span>Ferramentas</span>
     </button>
   </nav>
 </div>
