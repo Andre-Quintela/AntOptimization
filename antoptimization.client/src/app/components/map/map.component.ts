@@ -53,14 +53,9 @@ export class MapComponent implements AfterViewInit, OnDestroy {
       distinctUntilChanged(),
       switchMap(query => {
         this.isSearching = query.trim().length >= 3;
-        const bounds = this.map?.getBounds();
-        const viewbox = bounds ? {
-          west: bounds.getWest(),
-          south: bounds.getSouth(),
-          east: bounds.getEast(),
-          north: bounds.getNorth()
-        } : undefined;
-        return this.geocodingService.search(query, viewbox);
+        const center = this.map?.getCenter();
+        const location = center ? { lat: center.lat, lng: center.lng } : undefined;
+        return this.geocodingService.search(query, location);
       }),
       takeUntil(this.destroy$)
     ).subscribe(results => {
