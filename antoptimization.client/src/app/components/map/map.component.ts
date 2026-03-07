@@ -430,10 +430,19 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     const latlng = this.searchMarker.getLatLng();
     this.addPoint(latlng.lat, latlng.lng);
     this.clearSearchMarker();
+    this.searchQuery = '';
+    this.searchResults = [];
   }
 
   hideSearchResults(): void {
     setTimeout(() => this.showResults = false, 200);
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.searchResults = [];
+    this.showResults = false;
+    this.clearSearchMarker();
   }
 
   private clearSearchMarker(): void {

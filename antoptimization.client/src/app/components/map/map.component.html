@@ -131,6 +131,9 @@
                  (input)="onSearchInput()"
                  (blur)="hideSearchResults()" />
           <i class="bi bi-arrow-repeat search-spinner" *ngIf="isSearching"></i>
+          <button class="search-clear-btn" *ngIf="searchQuery && !isSearching" (click)="clearSearch()">
+            <i class="bi bi-x-lg"></i>
+          </button>
         </div>
         <ul class="search-results" *ngIf="showResults">
           <li *ngFor="let result of searchResults"

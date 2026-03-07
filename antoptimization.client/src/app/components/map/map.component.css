@@ -588,7 +588,7 @@
 
 .search-input {
   width: 100%;
-  padding: 10px 12px 10px 36px;
+  padding: 10px 36px 10px 36px;
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-md);
   font-size: 0.85rem;
@@ -607,6 +607,28 @@
 
 .search-input::placeholder {
   color: var(--color-gray-400);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: all var(--transition);
+}
+
+.search-clear-btn:hover {
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
 }
 
 .search-spinner {
