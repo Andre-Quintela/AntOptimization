@@ -8,6 +8,10 @@
           <p class="header-subtitle">Ant Colony Optimization &middot; OpenStreetMap</p>
         </div>
       </div>
+      <div class="header-made-by">
+        <span>feito por</span>
+        <strong>André Quintela</strong>
+      </div>
     </div>
   </header>
 
@@ -106,6 +110,69 @@
     <!-- MAP (always rendered, visibility toggled on mobile) -->
     <main class="map-container" [class.mobile-visible]="activeTab === 'map'">
       <div id="map"></div>
+
+      <!-- MOBILE SEARCH OVERLAY -->
+      <div class="map-search-card">
+        <div class="map-search-row">
+          <i class="bi bi-search map-search-icon"></i>
+          <input type="text"
+                 class="map-search-input"
+                 placeholder="Pesquisar local ou endereço..."
+                 [(ngModel)]="searchQuery"
+                 (input)="onSearchInput()"
+                 (blur)="hideSearchResults()" />
+          <i class="bi bi-arrow-repeat map-search-spinner" *ngIf="isSearching"></i>
+          <button class="map-search-clear" *ngIf="searchQuery && !isSearching" (click)="clearSearch()">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <ul class="map-search-results-list" *ngIf="showResults">
+          <li *ngFor="let result of searchResults"
+              (mousedown)="selectSearchResult(result)">
+            <i class="bi bi-geo-alt result-icon"></i>
+            <div class="result-content">
+              <span class="result-name">{{ result.name }}</span>
+              <span class="result-address">{{ result.address }}</span>
+            </div>
+          </li>
+        </ul>
+        <button class="map-add-point-btn" *ngIf="hasSearchMarker" (click)="addSearchResultAsPoint()">
+          <i class="bi bi-plus-lg"></i> Adicionar ponto
+        </button>
+      </div>
+
+      <!-- MOBILE ACTION STRIP -->
+      <div class="map-action-strip">
+        <div class="map-action-inner">
+          <span class="map-points-chip" *ngIf="locations.length > 0">
+            <i class="bi bi-geo-alt-fill"></i>{{ locations.length }}
+          </span>
+          <button class="map-optimize-btn"
+                  [disabled]="isOptimizing || locations.length < 2"
+                  (click)="optimizeRoute()">
+            <ng-container *ngIf="!isOptimizing">
+              <i class="bi bi-play-fill"></i> Otimizar rota
+            </ng-container>
+            <ng-container *ngIf="isOptimizing && !isVisualizing">
+              <i class="bi bi-arrow-repeat spin"></i> Processando...
+            </ng-container>
+            <ng-container *ngIf="isVisualizing">
+              <i class="bi bi-arrow-repeat spin"></i> {{ currentIteration }}/{{ totalIterations }}
+            </ng-container>
+          </button>
+          <span class="map-result-chip" *ngIf="totalDistance !== null">
+            <i class="bi bi-graph-up"></i>{{ totalDistance }} km
+          </span>
+        </div>
+        <div class="map-progress-strip" *ngIf="isVisualizing">
+          <div class="map-progress-fill" [style.width.%]="totalIterations > 0 ? (currentIteration / totalIterations) * 100 : 0"></div>
+        </div>
+        <div class="map-error-strip" *ngIf="errorMessage">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          {{ errorMessage }}
+        </div>
+      </div>
+
       <button class="map-locate-btn"
               [class.locating]="locating"
               [disabled]="locating"
@@ -127,7 +194,7 @@
            (touchend)="onDrawerDragEnd()">
         <div class="drawer-pill"></div>
       </div>
-      <div class="panel-section">
+      <div class="panel-section panel-section-search">
         <div class="section-title">
           <i class="bi bi-search"></i>
           <span>Pesquisar local</span>

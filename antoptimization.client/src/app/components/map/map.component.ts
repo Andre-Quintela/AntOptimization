@@ -87,8 +87,13 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private initMap(): void {
     this.map = L.map('map', {
       center: [-19.9208, -43.9378],
-      zoom: 13
+      zoom: 13,
+      zoomControl: false
     });
+
+    if (window.innerWidth > 768) {
+      L.control.zoom({ position: 'topleft' }).addTo(this.map);
+    }
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
