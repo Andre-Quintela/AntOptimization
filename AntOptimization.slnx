@@ -16,4 +16,7 @@
     <Project Path="AntOptimization.Infrastructure/AntOptimization.Infrastructure.csproj" />
     <Project Path="AntOptimization.IoC/AntOptimization.IoC.csproj" />
   </Folder>
+  <Folder Name="/5 - Tests/">
+    <Project Path="AntOptimization.Tests/AntOptimization.Tests.csproj" />
+  </Folder>
 </Solution>
