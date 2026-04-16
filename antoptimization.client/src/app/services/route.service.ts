@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { OptimizationRequest, OptimizationResponse, VisualEvent } from '../models/route.models';
+import { OptimizationRequest, OptimizationResponse, VisualEvent, CompareOptimizationResponse } from '../models/route.models';
 
 @Injectable({
   providedIn: 'root'
@@ -13,6 +13,10 @@ export class RouteService {
 
   optimizeRoute(request: OptimizationRequest): Observable<OptimizationResponse> {
     return this.http.post<OptimizationResponse>(`${this.apiUrl}/optimize`, request);
+  }
+
+  compareRoutes(request: OptimizationRequest): Observable<CompareOptimizationResponse> {
+    return this.http.post<CompareOptimizationResponse>(`${this.apiUrl}/compare`, request);
   }
 
   optimizeRouteVisual(request: OptimizationRequest): Observable<VisualEvent> {

@@ -266,6 +266,11 @@
         <p class="help-text" *ngIf="locations.length < 2">
           Adicione pelo menos 2 pontos para otimizar.
         </p>
+        <button class="btn btn-block btn-outline-compare"
+                [disabled]="locations.length < 2"
+                (click)="goToDashboard()">
+          <i class="bi bi-bar-chart-line"></i> Comparar Algoritmos
+        </button>
       </div>
 
       <div class="alert alert-danger" *ngIf="errorMessage">

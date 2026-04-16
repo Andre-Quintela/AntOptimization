@@ -15,7 +15,11 @@ public static class DependencyInjectionExtensions
         });
 
         services.AddScoped<IAntColonyOptimizationService, AntColonyOptimizationService>();
+        services.AddScoped<INearestNeighborService, NearestNeighborService>();
+        services.AddScoped<ITwoOptService, TwoOptService>();
+        services.AddScoped<IGeneticAlgorithmService, GeneticAlgorithmService>();
         services.AddScoped<IRouteService, RouteService>();
+        services.AddScoped<ICompareRouteService, CompareRouteService>();
 
         return services;
     }

@@ -57,6 +57,26 @@
   font-weight: 400;
 }
 
+.btn-outline-compare {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btn-outline-compare:hover:not(:disabled) {
+  background: var(--color-primary-light);
+}
+
+.btn-outline-compare:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .header-made-by {
   margin-left: auto;
   display: flex;

@@ -31,3 +31,15 @@ export interface VisualOptimizationResult {
 }
 
 export type VisualEvent = IterationEvent | VisualOptimizationResult;
+
+export interface AlgorithmResult {
+  algorithm: string;
+  bestRouteOrder: number[];
+  totalDistance: number;
+  executionTimeMs: number;
+  routeCoordinates: LocationDto[];
+}
+
+export interface CompareOptimizationResponse {
+  results: AlgorithmResult[];
+}

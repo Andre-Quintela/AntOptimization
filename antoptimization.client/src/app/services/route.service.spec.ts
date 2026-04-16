@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { RouteService } from './route.service';
-import { OptimizationRequest, OptimizationResponse, IterationEvent, VisualOptimizationResult } from '../models/route.models';
+import { OptimizationRequest, OptimizationResponse, IterationEvent, VisualOptimizationResult, CompareOptimizationResponse } from '../models/route.models';
 
 describe('RouteService', () => {
   let service: RouteService;
@@ -183,6 +183,49 @@ describe('RouteService', () => {
           done();
         }
       });
+    });
+  });
+
+  describe('compareRoutes()', () => {
+    const mockCompareResponse: CompareOptimizationResponse = {
+      results: [
+        { algorithm: 'ACO', bestRouteOrder: [0, 1], totalDistance: 12.4, executionTimeMs: 320, routeCoordinates: [] },
+        { algorithm: 'Nearest Neighbor', bestRouteOrder: [0, 1], totalDistance: 13.1, executionTimeMs: 18, routeCoordinates: [] },
+        { algorithm: '2-Opt', bestRouteOrder: [0, 1], totalDistance: 12.6, executionTimeMs: 45, routeCoordinates: [] },
+        { algorithm: 'Genetic Algorithm', bestRouteOrder: [0, 1], totalDistance: 12.5, executionTimeMs: 280, routeCoordinates: [] }
+      ]
+    };
+
+    it('should POST to /api/routes/compare with the correct payload', () => {
+      service.compareRoutes(mockRequest).subscribe();
+
+      const req = httpMock.expectOne('/api/routes/compare');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(mockRequest);
+      req.flush(mockCompareResponse);
+    });
+
+    it('should return results for all 4 algorithms', () => {
+      let result: CompareOptimizationResponse | undefined;
+      service.compareRoutes(mockRequest).subscribe(r => (result = r));
+
+      const req = httpMock.expectOne('/api/routes/compare');
+      req.flush(mockCompareResponse);
+
+      expect(result).toEqual(mockCompareResponse);
+      expect(result!.results.length).toBe(4);
+    });
+
+    it('should propagate HTTP errors', () => {
+      let error: Error | undefined;
+      service.compareRoutes(mockRequest).subscribe({
+        error: (err) => (error = err)
+      });
+
+      const req = httpMock.expectOne('/api/routes/compare');
+      req.flush('Server error', { status: 500, statusText: 'Internal Server Error' });
+
+      expect(error).toBeDefined();
     });
   });
 });
