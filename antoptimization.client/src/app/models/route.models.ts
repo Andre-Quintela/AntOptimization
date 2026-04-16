@@ -38,6 +38,7 @@ export interface AlgorithmResult {
   totalDistance: number;
   executionTimeMs: number;
   routeCoordinates: LocationDto[];
+  relativeGapPercent: number;
 }
 
 export interface CompareOptimizationResponse {

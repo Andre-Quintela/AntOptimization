@@ -189,10 +189,10 @@ describe('RouteService', () => {
   describe('compareRoutes()', () => {
     const mockCompareResponse: CompareOptimizationResponse = {
       results: [
-        { algorithm: 'ACO', bestRouteOrder: [0, 1], totalDistance: 12.4, executionTimeMs: 320, routeCoordinates: [] },
-        { algorithm: 'Nearest Neighbor', bestRouteOrder: [0, 1], totalDistance: 13.1, executionTimeMs: 18, routeCoordinates: [] },
-        { algorithm: '2-Opt', bestRouteOrder: [0, 1], totalDistance: 12.6, executionTimeMs: 45, routeCoordinates: [] },
-        { algorithm: 'Genetic Algorithm', bestRouteOrder: [0, 1], totalDistance: 12.5, executionTimeMs: 280, routeCoordinates: [] }
+        { algorithm: 'ACO', bestRouteOrder: [0, 1], totalDistance: 12.4, executionTimeMs: 320, routeCoordinates: [], relativeGapPercent: 0.0 },
+        { algorithm: 'Nearest Neighbor', bestRouteOrder: [0, 1], totalDistance: 13.1, executionTimeMs: 18, routeCoordinates: [], relativeGapPercent: 5.65 },
+        { algorithm: '2-Opt', bestRouteOrder: [0, 1], totalDistance: 12.6, executionTimeMs: 45, routeCoordinates: [], relativeGapPercent: 1.61 },
+        { algorithm: 'Genetic Algorithm', bestRouteOrder: [0, 1], totalDistance: 12.5, executionTimeMs: 280, routeCoordinates: [], relativeGapPercent: 0.81 }
       ]
     };
 

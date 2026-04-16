@@ -107,4 +107,30 @@ public class CompareRouteServiceTests
 
         dms.Verify(x => x.GetDistanceMatrixAsync(It.IsAny<List<Location>>()), Times.Once);
     }
+
+    [Fact]
+    public async Task CompareRoutesAsync_BestAlgorithmHasZeroRelativeGap()
+    {
+        var (dms, aco, nn, twoOpt, ga) = CreateMocks(distance: 5000.0);
+        var service = CreateService(dms, aco, nn, twoOpt, ga);
+
+        var response = await service.CompareRoutesAsync(TwoLocationRequest);
+
+        var best = response.Results.OrderBy(r => r.TotalDistance).First();
+        best.RelativeGapPercent.Should().Be(0.0);
+    }
+
+    [Fact]
+    public async Task CompareRoutesAsync_NonBestAlgorithmsHavePositiveRelativeGap()
+    {
+        var (dms, aco, nn, twoOpt, ga) = CreateMocks(distance: 5000.0);
+        var service = CreateService(dms, aco, nn, twoOpt, ga);
+
+        var response = await service.CompareRoutesAsync(TwoLocationRequest);
+
+        var minDist = response.Results.Min(r => r.TotalDistance);
+        response.Results
+            .Where(r => r.TotalDistance > minDist)
+            .Should().AllSatisfy(r => r.RelativeGapPercent.Should().BeGreaterThan(0.0));
+    }
 }

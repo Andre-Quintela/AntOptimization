@@ -310,4 +310,14 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   getAlgorithmColor(algorithm: string): string {
     return ALGORITHM_COLORS[algorithm] ?? '#64748b';
   }
+
+  getQualityBarWidth(relativeGapPercent: number): number {
+    return Math.round(100 / (1 + relativeGapPercent / 100));
+  }
+
+  getQualityBarColor(relativeGapPercent: number): string {
+    if (relativeGapPercent === 0) return 'var(--color-success)';
+    if (relativeGapPercent <= 10) return 'var(--color-warning)';
+    return 'var(--color-danger)';
+  }
 }

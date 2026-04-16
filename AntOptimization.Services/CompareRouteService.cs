@@ -66,6 +66,12 @@ public class CompareRouteService : ICompareRouteService
             });
         }
 
+        var minDistance = results.Min(r => r.TotalDistance);
+        foreach (var result in results)
+            result.RelativeGapPercent = minDistance > 0
+                ? Math.Round((result.TotalDistance - minDistance) / minDistance * 100.0, 2)
+                : 0.0;
+
         return new CompareOptimizationResponse { Results = results };
     }
 }

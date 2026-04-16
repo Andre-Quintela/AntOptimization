@@ -150,6 +150,7 @@
                   <th>Algoritmo</th>
                   <th>Distância (km)</th>
                   <th>Tempo (ms)</th>
+                  <th>Qualidade</th>
                   <th></th>
                 </tr>
               </thead>
@@ -161,6 +162,17 @@
                   </td>
                   <td>{{ r.totalDistance }}</td>
                   <td>{{ r.executionTimeMs }}</td>
+                  <td class="quality-cell">
+                    <div class="quality-bar-track">
+                      <div class="quality-bar-fill"
+                           [style.width.%]="getQualityBarWidth(r.relativeGapPercent)"
+                           [style.background-color]="getQualityBarColor(r.relativeGapPercent)">
+                      </div>
+                    </div>
+                    <span class="quality-label">
+                      {{ r.relativeGapPercent === 0 ? 'Ótimo' : '+' + r.relativeGapPercent.toFixed(2) + '%' }}
+                    </span>
+                  </td>
                   <td>
                     <span *ngIf="r.algorithm === bestAlgorithm" class="badge-best">
                       <i class="bi bi-trophy-fill"></i> Melhor
