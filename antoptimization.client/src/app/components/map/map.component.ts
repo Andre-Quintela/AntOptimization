@@ -6,6 +6,7 @@ import * as L from 'leaflet';
 import { RouteService } from '../../services/route.service';
 import { GeocodingService } from '../../services/geocoding.service';
 import { LocationStateService } from '../../services/location-state.service';
+import { PointsStorageService } from '../../services/points-storage.service';
 import { LocationDto, IterationEvent } from '../../models/route.models';
 import { GeocodingResult } from '../../models/geocoding.models';
 
@@ -21,6 +22,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private searchMarker?: L.Marker;
   private destroy$ = new Subject<void>();
   @ViewChild('toolsPanel') private toolsPanelRef!: ElementRef<HTMLElement>;
+  @ViewChild('csvFileInput') private csvFileInputRef!: ElementRef<HTMLInputElement>;
 
   locations: LocationDto[] = [];
   startIndex: number | null = null;
@@ -56,7 +58,8 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     private router: Router,
     private routeService: RouteService,
     private geocodingService: GeocodingService,
-    private locationState: LocationStateService
+    private locationState: LocationStateService,
+    private pointsStorage: PointsStorageService
   ) {
     this.searchSubject$.pipe(
       debounceTime(400),
@@ -459,6 +462,68 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
     url += '&travelmode=driving';
     window.open(url, '_blank');
+  }
+
+  get hasSavedPoints(): boolean {
+    return this.pointsStorage.hasSavedPoints();
+  }
+
+  savePoints(): void {
+    this.pointsStorage.saveToLocalStorage(this.locations, this.startIndex);
+  }
+
+  loadSavedPoints(): void {
+    const saved = this.pointsStorage.loadFromLocalStorage();
+    if (saved) this.applyLocations(saved.locations, saved.startIndex);
+  }
+
+  exportCsv(): void {
+    this.pointsStorage.exportToCsv(this.locations, this.startIndex);
+  }
+
+  triggerCsvImport(): void {
+    this.csvFileInputRef.nativeElement.click();
+  }
+
+  onCsvFileSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const saved = this.pointsStorage.parseCsv(e.target!.result as string);
+        this.applyLocations(saved.locations, saved.startIndex);
+      } catch (err: any) {
+        this.errorMessage = err.message ?? 'Erro ao importar CSV.';
+      }
+      (event.target as HTMLInputElement).value = '';
+    };
+    reader.readAsText(file);
+  }
+
+  private applyLocations(locations: LocationDto[], startIndex: number | null): void {
+    this.markers.forEach(m => this.map.removeLayer(m));
+    this.markers = [];
+    if (this.routeLayer) {
+      this.map.removeLayer(this.routeLayer);
+      this.routeLayer = undefined;
+    }
+    this.clearIterationVisuals();
+    this.totalDistance = null;
+    this.bestRouteOrder = [];
+    this.errorMessage = null;
+
+    this.locations = [];
+    this.startIndex = null;
+    locations.forEach(loc => this.addPoint(loc.lat, loc.lng));
+
+    if (startIndex !== null && startIndex < this.locations.length) {
+      this.startIndex = startIndex;
+      this.rebuildMarkers();
+    }
+
+    this.locationState.sync(this.locations, this.startIndex);
+    if (this.locations.length > 0) this.fitAllPoints();
   }
 
   onSearchInput(): void {

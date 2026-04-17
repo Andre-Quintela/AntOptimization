@@ -4,6 +4,7 @@ import { of, throwError, Subject } from 'rxjs';
 import { MapComponent } from './map.component';
 import { RouteService } from '../../services/route.service';
 import { GeocodingService } from '../../services/geocoding.service';
+import { PointsStorageService, SavedPoints } from '../../services/points-storage.service';
 import { OptimizationResponse, IterationEvent, VisualOptimizationResult } from '../../models/route.models';
 import { GeocodingResult } from '../../models/geocoding.models';
 import * as L from 'leaflet';
@@ -80,12 +81,17 @@ describe('MapComponent', () => {
   let fixture: ComponentFixture<MapComponent>;
   let routeServiceSpy: jasmine.SpyObj<RouteService>;
   let geocodingServiceSpy: jasmine.SpyObj<GeocodingService>;
+  let pointsStorageSpy: jasmine.SpyObj<PointsStorageService>;
   let mapStub: ReturnType<typeof createMapStub>;
 
   beforeEach(async () => {
     routeServiceSpy = jasmine.createSpyObj('RouteService', ['optimizeRoute', 'optimizeRouteVisual']);
     geocodingServiceSpy = jasmine.createSpyObj('GeocodingService', ['search']);
     geocodingServiceSpy.search.and.returnValue(of([]));
+    pointsStorageSpy = jasmine.createSpyObj('PointsStorageService', [
+      'saveToLocalStorage', 'loadFromLocalStorage', 'hasSavedPoints', 'exportToCsv', 'parseCsv'
+    ]);
+    pointsStorageSpy.hasSavedPoints.and.returnValue(false);
 
     mapStub = createMapStub();
 
@@ -108,7 +114,8 @@ describe('MapComponent', () => {
       declarations: [MapComponent],
       providers: [
         { provide: RouteService, useValue: routeServiceSpy },
-        { provide: GeocodingService, useValue: geocodingServiceSpy }
+        { provide: GeocodingService, useValue: geocodingServiceSpy },
+        { provide: PointsStorageService, useValue: pointsStorageSpy }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();
@@ -523,6 +530,181 @@ describe('MapComponent', () => {
       component.toolsOpen = true;
       component.switchTab('points');
       expect(component.toolsOpen).toBeFalse();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Persistência de pontos (PointsStorageService)
+  // -------------------------------------------------------------------------
+  describe('hasSavedPoints', () => {
+    it('should return false when service reports no saved points', () => {
+      pointsStorageSpy.hasSavedPoints.and.returnValue(false);
+      expect(component.hasSavedPoints).toBeFalse();
+    });
+
+    it('should return true when service reports saved points exist', () => {
+      pointsStorageSpy.hasSavedPoints.and.returnValue(true);
+      expect(component.hasSavedPoints).toBeTrue();
+    });
+  });
+
+  describe('savePoints()', () => {
+    it('should call saveToLocalStorage with current locations and startIndex', () => {
+      (component as unknown as { addPoint: (lat: number, lng: number) => void })
+        .addPoint(-19.9, -43.9);
+      (component as unknown as { addPoint: (lat: number, lng: number) => void })
+        .addPoint(-19.8, -43.8);
+
+      component.savePoints();
+
+      expect(pointsStorageSpy.saveToLocalStorage).toHaveBeenCalledWith(
+        component.locations,
+        component.startIndex
+      );
+    });
+  });
+
+  describe('loadSavedPoints()', () => {
+    it('should call applyLocations with saved data', () => {
+      const saved: SavedPoints = {
+        locations: [{ lat: -19.9, lng: -43.9 }, { lat: -19.8, lng: -43.8 }],
+        startIndex: 1
+      };
+      pointsStorageSpy.loadFromLocalStorage.and.returnValue(saved);
+
+      component.loadSavedPoints();
+
+      expect(component.locations).toEqual(saved.locations);
+    });
+
+    it('should set startIndex from the saved data', () => {
+      const saved: SavedPoints = {
+        locations: [{ lat: -19.9, lng: -43.9 }, { lat: -19.8, lng: -43.8 }],
+        startIndex: 1
+      };
+      pointsStorageSpy.loadFromLocalStorage.and.returnValue(saved);
+
+      component.loadSavedPoints();
+
+      expect(component.startIndex).toBe(1);
+    });
+
+    it('should do nothing if loadFromLocalStorage returns null', () => {
+      pointsStorageSpy.loadFromLocalStorage.and.returnValue(null);
+      const originalLocations = [...component.locations];
+
+      component.loadSavedPoints();
+
+      expect(component.locations).toEqual(originalLocations);
+    });
+  });
+
+  describe('exportCsv()', () => {
+    it('should call exportToCsv with current locations and startIndex', () => {
+      (component as unknown as { addPoint: (lat: number, lng: number) => void })
+        .addPoint(-19.9, -43.9);
+
+      component.exportCsv();
+
+      expect(pointsStorageSpy.exportToCsv).toHaveBeenCalledWith(
+        component.locations,
+        component.startIndex
+      );
+    });
+  });
+
+  describe('triggerCsvImport()', () => {
+    it('should call click() on the hidden file input', () => {
+      const inputEl = fixture.nativeElement.querySelector('input[type="file"]') as HTMLInputElement;
+      const clickSpy = spyOn(inputEl, 'click');
+
+      component.triggerCsvImport();
+
+      expect(clickSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('onCsvFileSelected()', () => {
+    const mockCsvLocations = [{ lat: -19.9, lng: -43.9 }, { lat: -19.8, lng: -43.8 }];
+    const mockParsed: SavedPoints = { locations: mockCsvLocations, startIndex: 0 };
+
+    it('should do nothing when no file is provided', () => {
+      const event = { target: { files: null, value: '' } } as unknown as Event;
+      component.onCsvFileSelected(event);
+      expect(pointsStorageSpy.parseCsv).not.toHaveBeenCalled();
+    });
+
+    it('should read the file and call parseCsv with its content', (done) => {
+      pointsStorageSpy.parseCsv.and.returnValue(mockParsed);
+
+      const csvContent = 'lat,lng,is_start\n-19.9,-43.9,true';
+      const mockReader = {
+        onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
+        readAsText: jasmine.createSpy('readAsText').and.callFake(function(this: typeof mockReader) {
+          if (this.onload) {
+            this.onload({ target: { result: csvContent } } as unknown as ProgressEvent<FileReader>);
+          }
+        })
+      };
+      spyOn(window as Window & typeof globalThis, 'FileReader' as keyof Window).and.returnValue(mockReader as unknown as FileReader);
+
+      const mockFile = new File([csvContent], 'pontos.csv', { type: 'text/csv' });
+      const inputEl = { files: [mockFile], value: '' } as unknown as HTMLInputElement;
+      const event = { target: inputEl } as unknown as Event;
+
+      component.onCsvFileSelected(event);
+
+      expect(pointsStorageSpy.parseCsv).toHaveBeenCalledWith(csvContent);
+      expect(component.locations).toEqual(mockCsvLocations);
+      done();
+    });
+
+    it('should set errorMessage when parseCsv throws', (done) => {
+      const csvContent = 'bad,header\n1,2,3';
+      pointsStorageSpy.parseCsv.and.throwError('CSV inválido: o cabeçalho deve ser "lat,lng,is_start".');
+
+      const mockReader = {
+        onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
+        readAsText: jasmine.createSpy('readAsText').and.callFake(function(this: typeof mockReader) {
+          if (this.onload) {
+            this.onload({ target: { result: csvContent } } as unknown as ProgressEvent<FileReader>);
+          }
+        })
+      };
+      spyOn(window as Window & typeof globalThis, 'FileReader' as keyof Window).and.returnValue(mockReader as unknown as FileReader);
+
+      const mockFile = new File([csvContent], 'bad.csv', { type: 'text/csv' });
+      const inputEl = { files: [mockFile], value: '' } as unknown as HTMLInputElement;
+      const event = { target: inputEl } as unknown as Event;
+
+      component.onCsvFileSelected(event);
+
+      expect(component.errorMessage).toContain('CSV inválido');
+      done();
+    });
+
+    it('should reset the file input value after processing', (done) => {
+      pointsStorageSpy.parseCsv.and.returnValue(mockParsed);
+
+      const csvContent = 'lat,lng,is_start\n-19.9,-43.9,true';
+      const mockReader = {
+        onload: null as ((e: ProgressEvent<FileReader>) => void) | null,
+        readAsText: jasmine.createSpy('readAsText').and.callFake(function(this: typeof mockReader) {
+          if (this.onload) {
+            this.onload({ target: { result: csvContent } } as unknown as ProgressEvent<FileReader>);
+          }
+        })
+      };
+      spyOn(window as Window & typeof globalThis, 'FileReader' as keyof Window).and.returnValue(mockReader as unknown as FileReader);
+
+      const mockFile = new File([csvContent], 'pontos.csv', { type: 'text/csv' });
+      const inputEl = { files: [mockFile], value: 'pontos.csv' } as unknown as HTMLInputElement;
+      const event = { target: inputEl } as unknown as Event;
+
+      component.onCsvFileSelected(event);
+
+      expect((event.target as HTMLInputElement).value).toBe('');
+      done();
     });
   });
 });
