@@ -10,10 +10,11 @@ namespace AntOptimization.Tests.Controllers;
 
 public class RouteControllerTests
 {
-    private static RouteController CreateController(IRouteService? service = null)
+    private static RouteController CreateController(IRouteService? service = null, ICompareRouteService? compareService = null)
     {
         service ??= new Mock<IRouteService>().Object;
-        return new RouteController(service);
+        compareService ??= new Mock<ICompareRouteService>().Object;
+        return new RouteController(service, compareService);
     }
 
     private static OptimizationRequest ValidRequest(int locationCount = 2, int? startIndex = null) => new()

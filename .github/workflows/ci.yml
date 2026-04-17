@@ -9,8 +9,8 @@ on:
       - master
 
 jobs:
-  test:
-    name: Run tests
+  test-backend:
+    name: Run backend tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -25,3 +25,27 @@ jobs:
 
       - name: Test
         run: dotnet test AntOptimization.Tests/AntOptimization.Tests.csproj --configuration Release --verbosity normal
+
+  test-frontend:
+    name: Run frontend tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: antoptimization.client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: antoptimization.client
+        run: npm ci
+
+      - name: Run tests
+        working-directory: antoptimization.client
+        run: npm test -- --watch=false --browsers=ChromeHeadless

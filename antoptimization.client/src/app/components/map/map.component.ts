@@ -1,9 +1,11 @@
 import { Component, AfterViewInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import * as L from 'leaflet';
 import { RouteService } from '../../services/route.service';
 import { GeocodingService } from '../../services/geocoding.service';
+import { LocationStateService } from '../../services/location-state.service';
 import { LocationDto, IterationEvent } from '../../models/route.models';
 import { GeocodingResult } from '../../models/geocoding.models';
 
@@ -51,8 +53,10 @@ export class MapComponent implements AfterViewInit, OnDestroy {
   private visualAbort?: () => void;
 
   constructor(
+    private router: Router,
     private routeService: RouteService,
-    private geocodingService: GeocodingService
+    private geocodingService: GeocodingService,
+    private locationState: LocationStateService
   ) {
     this.searchSubject$.pipe(
       debounceTime(400),
@@ -73,6 +77,10 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.initMap();
+  }
+
+  goToDashboard(): void {
+    this.router.navigate(['/dashboard']);
   }
 
   ngOnDestroy(): void {
@@ -139,6 +147,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     marker.bindPopup(this.createPopupContent(index, index === this.startIndex));
     this.markers.push(marker);
 
+    this.locationState.sync(this.locations, this.startIndex);
     this.clearRoute();
   }
 
@@ -153,6 +162,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
 
     this.markers[index].setIcon(this.createMarkerIcon(index, true));
     this.markers[index].setPopupContent(this.createPopupContent(index, true));
+    this.locationState.sync(this.locations, this.startIndex);
     this.clearRoute();
   }
 
@@ -329,6 +339,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     this.markers = [];
     this.locations = [];
     this.startIndex = null;
+    this.locationState.sync([], null);
     this.clearRoute();
     this.clearSearchMarker();
     this.errorMessage = null;
@@ -346,6 +357,7 @@ export class MapComponent implements AfterViewInit, OnDestroy {
     }
 
     this.rebuildMarkers();
+    this.locationState.sync(this.locations, this.startIndex);
     this.clearRoute();
   }
 

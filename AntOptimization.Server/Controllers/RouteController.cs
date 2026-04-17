@@ -11,10 +11,12 @@ namespace AntOptimization.Server.Controllers;
 public class RouteController : ControllerBase
 {
     private readonly IRouteService _routeService;
+    private readonly ICompareRouteService _compareRouteService;
 
-    public RouteController(IRouteService routeService)
+    public RouteController(IRouteService routeService, ICompareRouteService compareRouteService)
     {
         _routeService = routeService;
+        _compareRouteService = compareRouteService;
     }
 
     [HttpPost("optimize")]
@@ -28,6 +30,20 @@ public class RouteController : ControllerBase
             return BadRequest("StartLocationIndex is out of range.");
 
         var result = await _routeService.OptimizeRouteAsync(request);
+        return Ok(result);
+    }
+
+    [HttpPost("compare")]
+    public async Task<ActionResult<CompareOptimizationResponse>> Compare([FromBody] CompareOptimizationRequest request)
+    {
+        if (request.Locations.Count < 2)
+            return BadRequest("At least 2 locations are required.");
+
+        if (request.StartLocationIndex.HasValue &&
+            (request.StartLocationIndex.Value < 0 || request.StartLocationIndex.Value >= request.Locations.Count))
+            return BadRequest("StartLocationIndex is out of range.");
+
+        var result = await _compareRouteService.CompareRoutesAsync(request);
         return Ok(result);
     }
 
