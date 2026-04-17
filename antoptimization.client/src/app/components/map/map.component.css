@@ -1344,3 +1344,17 @@
     gap: 8px;
   }
 }
+
+/* ========== DATA ACTIONS ========== */
+
+.panel-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.panel-data-actions .btn {
+  flex: 1 1 auto;
+}

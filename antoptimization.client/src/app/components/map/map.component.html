@@ -26,6 +26,25 @@
         <span class="badge">{{ locations.length }}</span>
       </div>
 
+      <div class="panel-data-actions">
+        <button class="btn btn-sm btn-ghost" (click)="triggerCsvImport()" title="Importar pontos de um arquivo CSV">
+          <i class="bi bi-upload"></i> Importar CSV
+        </button>
+        <button class="btn btn-sm btn-ghost" *ngIf="hasSavedPoints" (click)="loadSavedPoints()" title="Carregar pontos salvos no navegador">
+          <i class="bi bi-cloud-arrow-down"></i> Carregar salvo
+        </button>
+        <ng-container *ngIf="locations.length > 0">
+          <button class="btn btn-sm btn-ghost" (click)="savePoints()" title="Salvar pontos no navegador">
+            <i class="bi bi-floppy"></i> Salvar
+          </button>
+          <button class="btn btn-sm btn-ghost" (click)="exportCsv()" title="Exportar pontos como CSV">
+            <i class="bi bi-download"></i> Exportar CSV
+          </button>
+        </ng-container>
+        <input type="file" accept=".csv" #csvFileInput style="display:none"
+               (change)="onCsvFileSelected($event)" />
+      </div>
+
       <div class="points-list" *ngIf="locations.length > 0">
         <div *ngFor="let loc of locations; let i = index"
              class="point-item"
