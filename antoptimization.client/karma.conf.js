@@ -26,8 +26,17 @@
       subdir: '.',
       reporters: [
         { type: 'html' },
-        { type: 'text-summary' }
-      ]
+        { type: 'text-summary' },
+        { type: 'lcovonly' }
+      ],
+      check: {
+        global: {
+          statements: 70,
+          branches: 70,
+          functions: 70,
+          lines: 70
+        }
+      }
     },
     reporters: ['progress', 'kjhtml'],
     port: 9876,

@@ -24,8 +24,34 @@ jobs:
         with:
           dotnet-version: '10.x'
 
-      - name: Test
-        run: dotnet test AntOptimization.Tests/AntOptimization.Tests.csproj --configuration Release --verbosity normal
+      - name: Test with coverage
+        run: dotnet test AntOptimization.Tests/AntOptimization.Tests.csproj --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage-results
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage report
+        run: reportgenerator -reports:"./coverage-results/**/coverage.cobertura.xml" -targetdir:"./coverage-report-backend" -reporttypes:"Html;TextSummary"
+
+      - name: Check coverage threshold (70% lines)
+        run: |
+          COVERAGE=$(grep -oP '(?<=Line coverage: )\d+\.\d+' ./coverage-report-backend/Summary.txt)
+          echo "Backend line coverage: ${COVERAGE}%"
+          python3 -c "
+          coverage = float('${COVERAGE}')
+          threshold = 70.0
+          if coverage < threshold:
+              print(f'FAIL: {coverage:.1f}% < {threshold}% threshold')
+              exit(1)
+          print(f'PASS: {coverage:.1f}% >= {threshold}% threshold')
+          "
+
+      - name: Upload backend coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-backend
+          path: ./coverage-report-backend
 
   test-frontend:
     name: Run frontend tests
@@ -47,9 +73,16 @@ jobs:
         working-directory: antoptimization.client
         run: npm ci
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: antoptimization.client
-        run: npm test -- --watch=false --browsers=ChromeHeadless
+        run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+
+      - name: Upload frontend coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-frontend
+          path: antoptimization.client/coverage
 
   build:
     runs-on: ubuntu-latest
