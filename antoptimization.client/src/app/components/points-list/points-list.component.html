@@ -1,0 +1,44 @@
+<div class="points-list" *ngIf="points.length > 0">
+  <div *ngFor="let loc of points; let i = index"
+       class="point-item"
+       [class.point-start]="i === startIndex"
+       (click)="focus.emit(loc)">
+    <div class="point-indicator">
+      <i class="bi bi-flag-fill" *ngIf="i === startIndex"></i>
+      <span *ngIf="i !== startIndex">{{ i + 1 }}</span>
+    </div>
+    <div class="point-details">
+      <span class="point-label">
+        <ng-container *ngIf="i === startIndex">Partida</ng-container>
+        <ng-container *ngIf="i !== startIndex">Ponto {{ i + 1 }}</ng-container>
+      </span>
+      <span class="point-coords">{{ loc.lat.toFixed(5) }}, {{ loc.lng.toFixed(5) }}</span>
+      <span class="point-optimized-pos" *ngIf="getOptimizedPosition(i) as pos">
+        <i class="bi bi-arrow-right-short"></i> {{ pos }}ª parada
+      </span>
+    </div>
+    <div class="point-actions" (click)="$event.stopPropagation()">
+      <button class="icon-btn" title="Definir como partida"
+              *ngIf="i !== startIndex"
+              [disabled]="isOptimizing"
+              (click)="setStart.emit(i)">
+        <i class="bi bi-flag"></i>
+      </button>
+      <button class="icon-btn" title="Localizar no mapa"
+              (click)="focus.emit(loc)">
+        <i class="bi bi-crosshair"></i>
+      </button>
+      <button class="icon-btn icon-btn-danger" title="Remover"
+              [disabled]="isOptimizing"
+              (click)="remove.emit(i)">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="empty-state" *ngIf="points.length === 0">
+  <i class="bi bi-geo-alt empty-icon"></i>
+  <p class="empty-title">Nenhum ponto adicionado</p>
+  <p class="empty-hint">Clique no mapa ou pesquise um local</p>
+</div>

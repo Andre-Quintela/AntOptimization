@@ -5,14 +5,22 @@ import { BrowserModule } from '@angular/platform-browser';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { MapComponent } from './components/map/map.component';
-import { DashboardComponent } from './components/dashboard/dashboard.component';
+import { HeaderComponent } from './components/header/header.component';
+import { MapViewComponent } from './components/map-view/map-view.component';
+import { PointsListComponent } from './components/points-list/points-list.component';
+import { SearchBoxComponent } from './components/search-box/search-box.component';
+import { MapPageComponent } from './pages/map-page/map-page.component';
+import { DashboardPageComponent } from './pages/dashboard-page/dashboard-page.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    MapComponent,
-    DashboardComponent
+    HeaderComponent,
+    MapViewComponent,
+    PointsListComponent,
+    SearchBoxComponent,
+    MapPageComponent,
+    DashboardPageComponent
   ],
   imports: [
     BrowserModule, HttpClientModule,

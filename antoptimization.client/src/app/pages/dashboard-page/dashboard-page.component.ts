@@ -1,5 +1,6 @@
 import {
   Component,
+  OnInit,
   AfterViewInit,
   OnDestroy,
   ViewChild,
@@ -8,14 +9,13 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
+import { takeUntil } from 'rxjs/operators';
 import * as L from 'leaflet';
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
 import { RouteService } from '../../services/route.service';
-import { GeocodingService } from '../../services/geocoding.service';
 import { LocationStateService } from '../../services/location-state.service';
 import { LocationDto, OptimizationRequest, AlgorithmResult } from '../../models/route.models';
-import { GeocodingResult } from '../../models/geocoding.models';
+import { MapViewComponent } from '../../components/map-view/map-view.component';
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -27,17 +27,16 @@ const ALGORITHM_COLORS: Record<string, string> = {
 };
 
 @Component({
-  selector: 'app-dashboard',
-  templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.css']
+  selector: 'app-dashboard-page',
+  templateUrl: './dashboard-page.component.html',
+  styleUrls: ['./dashboard-page.component.css']
 })
-export class DashboardComponent implements AfterViewInit, OnDestroy {
-  @ViewChild('miniMap') private miniMapRef!: ElementRef<HTMLElement>;
+export class DashboardPageComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild(MapViewComponent) private mapView!: MapViewComponent;
   @ViewChild('distanceChart') private distanceChartRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('timeChart') private timeChartRef!: ElementRef<HTMLCanvasElement>;
 
-  private miniMap!: L.Map;
-  private routeLayers: L.Polyline[] = [];
+  private routeLayerMap = new Map<string, L.Polyline>();
   private markers: L.Marker[] = [];
   private destroy$ = new Subject<void>();
   private distanceChartInstance?: Chart;
@@ -46,34 +45,28 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   locations: LocationDto[] = [];
   startIndex: number | null = null;
   isComparing = false;
+  isMapExpanded = false;
   results: AlgorithmResult[] = [];
+  selectedAlgorithm: string | null = null;
   errorMessage: string | null = null;
-
-  searchQuery = '';
-  searchResults: GeocodingResult[] = [];
-  isSearching = false;
-  showResults = false;
-  private searchSubject$ = new Subject<string>();
 
   constructor(
     private router: Router,
     private routeService: RouteService,
-    private geocodingService: GeocodingService,
     private locationState: LocationStateService,
     private cdr: ChangeDetectorRef
   ) {}
 
-  ngAfterViewInit(): void {
-    this.initMap();
-    this.setupSearch();
-    this.loadSavedLocations();
-  }
-
-  private loadSavedLocations(): void {
+  ngOnInit(): void {
     const saved = this.locationState.locations;
     if (saved.length > 0) {
       this.locations = [...saved];
       this.startIndex = this.locationState.startIndex;
+    }
+  }
+
+  ngAfterViewInit(): void {
+    if (this.locations.length > 0) {
       this.rebuildMarkers();
       this.fitPoints();
     }
@@ -84,81 +77,35 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     this.destroy$.complete();
     this.distanceChartInstance?.destroy();
     this.timeChartInstance?.destroy();
-    if (this.miniMap) this.miniMap.remove();
+    this.routeLayerMap.forEach(l => l.remove());
+    this.routeLayerMap.clear();
   }
 
-  goBack(): void {
-    this.router.navigate(['/']);
+  goBack(): void { this.router.navigate(['/']); }
+
+  toggleMapExpand(): void {
+    this.isMapExpanded = !this.isMapExpanded;
+    setTimeout(() => this.mapView.invalidateSize(), 50);
   }
 
-  private initMap(): void {
-    this.miniMap = L.map(this.miniMapRef.nativeElement, {
-      center: [-19.917, -43.934],
-      zoom: 13
+  selectAlgorithmFilter(algo: string | null): void {
+    this.selectedAlgorithm = algo;
+    this.applyRouteFilter();
+  }
+
+  private applyRouteFilter(): void {
+    const map = this.mapView.getMap();
+    this.routeLayerMap.forEach((layer, algo) => {
+      if (this.selectedAlgorithm === null || this.selectedAlgorithm === algo) {
+        layer.addTo(map);
+      } else {
+        layer.remove();
+      }
     });
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(this.miniMap);
-
-    this.miniMap.on('click', (e: L.LeafletMouseEvent) => {
-      this.addPoint(e.latlng.lat, e.latlng.lng);
-    });
   }
 
-  private setupSearch(): void {
-    this.searchSubject$
-      .pipe(
-        debounceTime(400),
-        distinctUntilChanged(),
-        switchMap(query => {
-          this.isSearching = true;
-          return this.geocodingService.search(query);
-        }),
-        takeUntil(this.destroy$)
-      )
-      .subscribe({
-        next: results => {
-          this.searchResults = results;
-          this.isSearching = false;
-          this.showResults = true;
-        },
-        error: () => { this.isSearching = false; }
-      });
-  }
-
-  onSearchInput(): void {
-    if (this.searchQuery.length >= 2) {
-      this.searchSubject$.next(this.searchQuery);
-    } else {
-      this.searchResults = [];
-      this.showResults = false;
-    }
-  }
-
-  hideSearchResults(): void {
-    setTimeout(() => { this.showResults = false; }, 200);
-  }
-
-  clearSearch(): void {
-    this.searchQuery = '';
-    this.searchResults = [];
-    this.showResults = false;
-  }
-
-  selectSearchResult(result: GeocodingResult): void {
-    this.addPoint(result.lat, result.lng);
-    this.searchQuery = '';
-    this.showResults = false;
-    this.searchResults = [];
-  }
-
-  addPoint(lat: number, lng: number): void {
-    const index = this.locations.length;
-    this.locations.push({ lat, lng });
-    this.addMarker(lat, lng, index);
-    this.fitPoints();
-    this.results = [];
+  onFocusPoint(loc: LocationDto): void {
+    this.mapView.getMap().setView([loc.lat, loc.lng], 15);
   }
 
   removePoint(index: number): void {
@@ -186,11 +133,9 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
       iconSize: [30, 30],
       iconAnchor: [15, 15]
     });
-
     const marker = L.marker([lat, lng], { icon })
-      .addTo(this.miniMap)
+      .addTo(this.mapView.getMap())
       .on('click', () => this.setAsStart(index));
-
     this.markers.push(marker);
   }
 
@@ -203,16 +148,16 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   private fitPoints(): void {
     if (this.locations.length > 0) {
       const bounds = L.latLngBounds(this.locations.map(l => [l.lat, l.lng] as L.LatLngTuple));
-      this.miniMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+      this.mapView.getMap().fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
   }
 
   compare(): void {
     if (this.locations.length < 2 || this.isComparing) return;
-
     this.isComparing = true;
     this.errorMessage = null;
     this.results = [];
+    this.selectedAlgorithm = null;
     this.clearRouteLayers();
 
     const request: OptimizationRequest = {
@@ -243,22 +188,24 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   }
 
   private clearRouteLayers(): void {
-    this.routeLayers.forEach(l => l.remove());
-    this.routeLayers = [];
+    this.routeLayerMap.forEach(l => l.remove());
+    this.routeLayerMap.clear();
   }
 
   private drawRoutes(): void {
     this.clearRouteLayers();
+    const map = this.mapView.getMap();
     for (const result of this.results) {
       if (result.routeCoordinates.length < 2) continue;
       const latlngs = result.routeCoordinates.map(c => [c.lat, c.lng] as L.LatLngTuple);
       const color = ALGORITHM_COLORS[result.algorithm] ?? '#64748b';
-      const layer = L.polyline(latlngs, { color, weight: 3, opacity: 0.8 }).addTo(this.miniMap);
-      this.routeLayers.push(layer);
+      const layer = L.polyline(latlngs, { color, weight: 4, opacity: 0.85 }).addTo(map);
+      this.routeLayerMap.set(result.algorithm, layer);
     }
-    if (this.routeLayers.length > 0) {
-      const allLatLngs = this.routeLayers.flatMap(l => l.getLatLngs() as L.LatLng[]);
-      this.miniMap.fitBounds(L.latLngBounds(allLatLngs), { padding: [40, 40] });
+    if (this.routeLayerMap.size > 0) {
+      const allLatLngs: L.LatLng[] = [];
+      this.routeLayerMap.forEach(l => allLatLngs.push(...(l.getLatLngs() as L.LatLng[])));
+      map.fitBounds(L.latLngBounds(allLatLngs), { padding: [40, 40] });
     }
   }
 
@@ -274,14 +221,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
     this.distanceChartInstance = new Chart(this.distanceChartRef.nativeElement, {
       type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Distância (km)',
-          data: distances,
-          backgroundColor: colors
-        }]
-      },
+      data: { labels, datasets: [{ label: 'Distância (km)', data: distances, backgroundColor: colors }] },
       options: {
         responsive: true,
         plugins: { legend: { display: false } },
@@ -291,14 +231,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
     this.timeChartInstance = new Chart(this.timeChartRef.nativeElement, {
       type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Tempo (ms)',
-          data: times,
-          backgroundColor: colors
-        }]
-      },
+      data: { labels, datasets: [{ label: 'Tempo (ms)', data: times, backgroundColor: colors }] },
       options: {
         responsive: true,
         plugins: { legend: { display: false } },

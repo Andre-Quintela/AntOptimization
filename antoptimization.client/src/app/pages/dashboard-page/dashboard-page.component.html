@@ -1,20 +1,12 @@
 <div class="app-container">
 
-  <!-- Header -->
-  <header class="app-header">
-    <div class="header-content">
-      <button class="btn-back" (click)="goBack()" title="Voltar ao mapa">
-        <i class="bi bi-arrow-left"></i>
-      </button>
-      <div class="header-brand">
-        <i class="bi bi-bar-chart-line header-logo"></i>
-        <div>
-          <h1>Comparativo de Algoritmos</h1>
-          <p class="header-subtitle">Nearest Neighbor &middot; 2-Opt &middot; Genetic Algorithm &middot; ACO</p>
-        </div>
-      </div>
-    </div>
-  </header>
+  <app-header
+    iconClass="bi-bar-chart-line"
+    title="Comparativo de Algoritmos"
+    subtitle="Nearest Neighbor · 2-Opt · Genetic Algorithm · ACO"
+    [showBackButton]="true"
+    (backClick)="goBack()">
+  </app-header>
 
   <div class="content-wrapper">
 
@@ -28,72 +20,15 @@
         <span class="badge">{{ locations.length }}</span>
       </div>
 
-      <!-- Search -->
-      <div class="panel-section panel-section-search">
-        <div class="section-title">
-          <i class="bi bi-search"></i>
-          <span>Pesquisar local</span>
-        </div>
-        <div class="search-wrapper">
-          <i class="bi bi-search search-icon-left"></i>
-          <input type="text"
-                 class="search-input"
-                 placeholder="Endereço ou cidade..."
-                 [(ngModel)]="searchQuery"
-                 (input)="onSearchInput()"
-                 (blur)="hideSearchResults()" />
-          <i class="bi bi-arrow-repeat search-spinner" *ngIf="isSearching"></i>
-          <button class="search-clear-btn" *ngIf="searchQuery && !isSearching" (click)="clearSearch()">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-        <ul class="search-results" *ngIf="showResults && searchResults.length > 0">
-          <li *ngFor="let r of searchResults" (mousedown)="selectSearchResult(r)">
-            <i class="bi bi-geo-alt result-icon"></i>
-            <div class="result-content">
-              <span class="result-name">{{ r.name }}</span>
-              <span class="result-address">{{ r.address }}</span>
-            </div>
-          </li>
-        </ul>
-      </div>
+      <app-points-list
+        [points]="locations"
+        [startIndex]="startIndex"
+        [isOptimizing]="isComparing"
+        (setStart)="setAsStart($event)"
+        (remove)="removePoint($event)"
+        (focus)="onFocusPoint($event)">
+      </app-points-list>
 
-      <!-- Points list -->
-      <div class="points-list" *ngIf="locations.length > 0">
-        <div *ngFor="let loc of locations; let i = index"
-             class="point-item"
-             [class.point-start]="i === startIndex">
-          <div class="point-indicator">
-            <i class="bi bi-flag-fill" *ngIf="i === startIndex"></i>
-            <span *ngIf="i !== startIndex">{{ i + 1 }}</span>
-          </div>
-          <div class="point-details">
-            <span class="point-label">
-              <ng-container *ngIf="i === startIndex">Partida</ng-container>
-              <ng-container *ngIf="i !== startIndex">Ponto {{ i + 1 }}</ng-container>
-            </span>
-            <span class="point-coords">{{ loc.lat.toFixed(5) }}, {{ loc.lng.toFixed(5) }}</span>
-          </div>
-          <div class="point-actions">
-            <button class="icon-btn" title="Definir como partida"
-                    *ngIf="i !== startIndex"
-                    (click)="setAsStart(i)">
-              <i class="bi bi-flag"></i>
-            </button>
-            <button class="icon-btn icon-btn-danger" title="Remover" (click)="removePoint(i)">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="empty-state" *ngIf="locations.length === 0">
-        <i class="bi bi-geo-alt empty-icon"></i>
-        <p class="empty-title">Nenhum ponto adicionado</p>
-        <p class="empty-hint">Clique no mapa ou pesquise um local</p>
-      </div>
-
-      <!-- Footer actions -->
       <div class="left-panel-footer">
         <button class="btn btn-sm btn-primary btn-block"
                 [disabled]="locations.length < 2 || isComparing"
@@ -115,21 +50,34 @@
         <span>{{ errorMessage }}</span>
       </div>
 
-      <!-- Mini map -->
-      <div class="mini-map" #miniMap></div>
+      <div class="mini-map" [class.mini-map--expanded]="isMapExpanded">
+        <div class="mini-map-toolbar">
+          <span class="mini-map-label">
+            <i class="bi bi-map"></i> Mapa
+          </span>
+          <button class="btn-map-expand"
+                  [title]="isMapExpanded ? 'Recolher mapa' : 'Expandir mapa'"
+                  (click)="toggleMapExpand()">
+            <i class="bi" [class.bi-fullscreen]="!isMapExpanded" [class.bi-fullscreen-exit]="isMapExpanded"></i>
+          </button>
+        </div>
+        <div class="mini-map-canvas">
+          <app-map-view></app-map-view>
+        </div>
+      </div>
+
+      <div class="map-modal-backdrop" *ngIf="isMapExpanded" (click)="toggleMapExpand()"></div>
     </aside>
 
     <!-- RESULTS PANEL -->
     <main class="results-panel">
 
-      <!-- Empty state -->
       <div *ngIf="results.length === 0 && !isComparing" class="empty-results">
         <i class="bi bi-bar-chart-line empty-icon"></i>
         <p class="empty-title">Nenhum resultado ainda</p>
         <p class="empty-hint">Adicione pelo menos 2 localizações e clique em <strong>Comparar Algoritmos</strong></p>
       </div>
 
-      <!-- Loading -->
       <div *ngIf="isComparing" class="loading-state">
         <i class="bi bi-arrow-repeat spin loading-icon"></i>
         <p>Executando os 4 algoritmos, aguarde...</p>
@@ -137,11 +85,27 @@
 
       <ng-container *ngIf="results.length > 0">
 
-        <!-- Results table -->
         <section class="results-section">
           <div class="section-header">
             <i class="bi bi-table"></i>
             <h2>Resultados</h2>
+          </div>
+
+          <div class="algo-filter">
+            <span class="filter-label">Rota no mapa:</span>
+            <button class="filter-pill"
+                    [class.active]="selectedAlgorithm === null"
+                    (click)="selectAlgorithmFilter(null)">
+              Todos
+            </button>
+            <button *ngFor="let r of results"
+                    class="filter-pill"
+                    [class.active]="selectedAlgorithm === r.algorithm"
+                    [style.--pill-color]="getAlgorithmColor(r.algorithm)"
+                    (click)="selectAlgorithmFilter(r.algorithm)">
+              <span class="filter-pill-dot" [style.background]="getAlgorithmColor(r.algorithm)"></span>
+              {{ r.algorithm }}
+            </button>
           </div>
           <div class="table-card">
             <table class="results-table">
@@ -184,7 +148,6 @@
           </div>
         </section>
 
-        <!-- Charts -->
         <section class="charts-section">
           <div class="chart-card">
             <div class="chart-card-header">
