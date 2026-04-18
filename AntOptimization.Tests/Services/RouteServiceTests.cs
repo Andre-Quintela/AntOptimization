@@ -1,5 +1,6 @@
 using AntOptimization.Domain.Algorithms;
 using AntOptimization.Domain.DTOs;
+using AntOptimization.Domain.Entities;
 using AntOptimization.Domain.Interfaces;
 using AntOptimization.Domain.Models;
 using AntOptimization.Services;
@@ -20,7 +21,10 @@ public class RouteServiceTests
         ]
     };
 
-    private static (Mock<IDistanceMatrixService>, Mock<IAntColonyOptimizationService>) CreateMocks(
+    private static (
+        Mock<IDistanceMatrixService>,
+        Mock<IAntColonyOptimizationService>,
+        Mock<IOptimizationRunRepository>) CreateMocks(
         List<int>? tour = null,
         double distance = 1000.0,
         List<IterationSnapshot>? history = null)
@@ -30,6 +34,7 @@ public class RouteServiceTests
 
         var mockDms = new Mock<IDistanceMatrixService>();
         var mockAco = new Mock<IAntColonyOptimizationService>();
+        var mockRepo = new Mock<IOptimizationRunRepository>();
 
         mockDms.Setup(x => x.GetDistanceMatrixAsync(It.IsAny<List<Location>>()))
                .ReturnsAsync(new double[2, 2]);
@@ -43,14 +48,14 @@ public class RouteServiceTests
         mockAco.Setup(x => x.OptimizeWithHistory(It.IsAny<double[,]>(), It.IsAny<int?>()))
                .Returns((tour, distance, history));
 
-        return (mockDms, mockAco);
+        return (mockDms, mockAco, mockRepo);
     }
 
     [Fact]
     public async Task OptimizeRouteAsync_ConvertsMeteresToKilometres()
     {
-        var (mockDms, mockAco) = CreateMocks(distance: 5000.0);
-        var service = new RouteService(mockDms.Object, mockAco.Object);
+        var (mockDms, mockAco, mockRepo) = CreateMocks(distance: 5000.0);
+        var service = new RouteService(mockDms.Object, mockAco.Object, mockRepo.Object);
 
         var result = await service.OptimizeRouteAsync(TwoLocationRequest);
 
@@ -60,8 +65,8 @@ public class RouteServiceTests
     [Fact]
     public async Task OptimizeRouteAsync_RoundsDistanceToTwoDecimals()
     {
-        var (mockDms, mockAco) = CreateMocks(distance: 1234.567);
-        var service = new RouteService(mockDms.Object, mockAco.Object);
+        var (mockDms, mockAco, mockRepo) = CreateMocks(distance: 1234.567);
+        var service = new RouteService(mockDms.Object, mockAco.Object, mockRepo.Object);
 
         var result = await service.OptimizeRouteAsync(TwoLocationRequest);
 
@@ -71,14 +76,14 @@ public class RouteServiceTests
     [Fact]
     public async Task OptimizeRouteAsync_PassesLocationsToDistanceService()
     {
-        var (mockDms, mockAco) = CreateMocks();
+        var (mockDms, mockAco, mockRepo) = CreateMocks();
         List<Location>? captured = null;
 
         mockDms.Setup(x => x.GetDistanceMatrixAsync(It.IsAny<List<Location>>()))
                .Callback<List<Location>>(locs => captured = locs)
                .ReturnsAsync(new double[2, 2]);
 
-        var service = new RouteService(mockDms.Object, mockAco.Object);
+        var service = new RouteService(mockDms.Object, mockAco.Object, mockRepo.Object);
 
         await service.OptimizeRouteAsync(TwoLocationRequest);
 
@@ -95,12 +100,23 @@ public class RouteServiceTests
     public async Task OptimizeRouteAsync_ReturnsCorrectBestRouteOrder()
     {
         var expectedOrder = new List<int> { 1, 0 };
-        var (mockDms, mockAco) = CreateMocks(tour: expectedOrder);
-        var service = new RouteService(mockDms.Object, mockAco.Object);
+        var (mockDms, mockAco, mockRepo) = CreateMocks(tour: expectedOrder);
+        var service = new RouteService(mockDms.Object, mockAco.Object, mockRepo.Object);
 
         var result = await service.OptimizeRouteAsync(TwoLocationRequest);
 
         result.BestRouteOrder.Should().Equal(expectedOrder);
+    }
+
+    [Fact]
+    public async Task OptimizeRouteAsync_PersistsOneRunPerCall()
+    {
+        var (mockDms, mockAco, mockRepo) = CreateMocks();
+        var service = new RouteService(mockDms.Object, mockAco.Object, mockRepo.Object);
+
+        await service.OptimizeRouteAsync(TwoLocationRequest);
+
+        mockRepo.Verify(x => x.AddAsync(It.IsAny<OptimizationRun>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -111,8 +127,8 @@ public class RouteServiceTests
             new(0, [0, 1], 1000, []),
             new(1, [0, 1],  900, [])
         };
-        var (mockDms, mockAco) = CreateMocks(history: history);
-        var service = new RouteService(mockDms.Object, mockAco.Object);
+        var (mockDms, mockAco, mockRepo) = CreateMocks(history: history);
+        var service = new RouteService(mockDms.Object, mockAco.Object, mockRepo.Object);
 
         var events = new List<object>();
         await foreach (var evt in service.OptimizeRouteVisualAsync(TwoLocationRequest))
@@ -131,8 +147,8 @@ public class RouteServiceTests
             new(0, [0, 1], 2000, []),
             new(1, [0, 1], 1500, [])
         };
-        var (mockDms, mockAco) = CreateMocks(history: history);
-        var service = new RouteService(mockDms.Object, mockAco.Object);
+        var (mockDms, mockAco, mockRepo) = CreateMocks(history: history);
+        var service = new RouteService(mockDms.Object, mockAco.Object, mockRepo.Object);
 
         var events = new List<object>();
         await foreach (var evt in service.OptimizeRouteVisualAsync(TwoLocationRequest))
@@ -151,8 +167,8 @@ public class RouteServiceTests
         {
             new(0, [0, 1], 1000, [])
         };
-        var (mockDms, mockAco) = CreateMocks(history: history);
-        var service = new RouteService(mockDms.Object, mockAco.Object);
+        var (mockDms, mockAco, mockRepo) = CreateMocks(history: history);
+        var service = new RouteService(mockDms.Object, mockAco.Object, mockRepo.Object);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel(); // pre-cancel so ThrowIfCancellationRequested fires on first iteration

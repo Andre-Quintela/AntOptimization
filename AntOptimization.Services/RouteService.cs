@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using AntOptimization.Domain.DTOs;
+using AntOptimization.Domain.Entities;
 using AntOptimization.Domain.Interfaces;
 using AntOptimization.Domain.Models;
 
@@ -9,11 +11,16 @@ public class RouteService : IRouteService
 {
     private readonly IDistanceMatrixService _distanceMatrixService;
     private readonly IAntColonyOptimizationService _acoService;
+    private readonly IOptimizationRunRepository _repository;
 
-    public RouteService(IDistanceMatrixService distanceMatrixService, IAntColonyOptimizationService acoService)
+    public RouteService(
+        IDistanceMatrixService distanceMatrixService,
+        IAntColonyOptimizationService acoService,
+        IOptimizationRunRepository repository)
     {
         _distanceMatrixService = distanceMatrixService;
         _acoService = acoService;
+        _repository = repository;
     }
 
     public async Task<OptimizationResponse> OptimizeRouteAsync(OptimizationRequest request)
@@ -30,7 +37,7 @@ public class RouteService : IRouteService
 
         var routeCoordinates = await _distanceMatrixService.GetRouteCoordinatesAsync(orderedLocations);
 
-        return new OptimizationResponse
+        var response = new OptimizationResponse
         {
             BestRouteOrder = bestTour,
             TotalDistance = Math.Round(bestDistance / 1000, 2),
@@ -38,6 +45,19 @@ public class RouteService : IRouteService
                 .Select(l => new LocationDto { Lat = l.Lat, Lng = l.Lng })
                 .ToList()
         };
+
+        await _repository.AddAsync(new OptimizationRun
+        {
+            Id = Guid.NewGuid(),
+            CreatedAtUtc = DateTime.UtcNow,
+            LocationCount = request.Locations.Count,
+            StartLocationIndex = request.StartLocationIndex,
+            BestRouteOrderJson = JsonSerializer.Serialize(response.BestRouteOrder),
+            TotalDistanceKm = response.TotalDistance,
+            RouteCoordinatesJson = JsonSerializer.Serialize(response.RouteCoordinates)
+        });
+
+        return response;
     }
 
     public async IAsyncEnumerable<object> OptimizeRouteVisualAsync(

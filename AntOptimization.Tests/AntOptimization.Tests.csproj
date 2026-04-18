@@ -21,12 +21,14 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.*" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AntOptimization.Domain\AntOptimization.Domain.csproj" />
     <ProjectReference Include="..\AntOptimization.Services\AntOptimization.Services.csproj" />
     <ProjectReference Include="..\AntOptimization.Server\AntOptimization.Server.csproj" />
+    <ProjectReference Include="..\AntOptimization.Infrastructure\AntOptimization.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Text.Json;
 using AntOptimization.Domain.DTOs;
+using AntOptimization.Domain.Entities;
 using AntOptimization.Domain.Interfaces;
 using AntOptimization.Domain.Models;
 
@@ -12,19 +14,22 @@ public class CompareRouteService : ICompareRouteService
     private readonly INearestNeighborService _nnService;
     private readonly ITwoOptService _twoOptService;
     private readonly IGeneticAlgorithmService _gaService;
+    private readonly ICompareRunRepository _repository;
 
     public CompareRouteService(
         IDistanceMatrixService distanceMatrixService,
         IAntColonyOptimizationService acoService,
         INearestNeighborService nnService,
         ITwoOptService twoOptService,
-        IGeneticAlgorithmService gaService)
+        IGeneticAlgorithmService gaService,
+        ICompareRunRepository repository)
     {
         _distanceMatrixService = distanceMatrixService;
         _acoService = acoService;
         _nnService = nnService;
         _twoOptService = twoOptService;
         _gaService = gaService;
+        _repository = repository;
     }
 
     public async Task<CompareOptimizationResponse> CompareRoutesAsync(CompareOptimizationRequest request)
@@ -71,6 +76,24 @@ public class CompareRouteService : ICompareRouteService
             result.RelativeGapPercent = minDistance > 0
                 ? Math.Round((result.TotalDistance - minDistance) / minDistance * 100.0, 2)
                 : 0.0;
+
+        await _repository.AddAsync(new CompareRun
+        {
+            Id = Guid.NewGuid(),
+            CreatedAtUtc = DateTime.UtcNow,
+            LocationCount = request.Locations.Count,
+            StartLocationIndex = request.StartLocationIndex,
+            Results = results.Select(r => new CompareRunResult
+            {
+                Id = Guid.NewGuid(),
+                Algorithm = r.Algorithm,
+                BestRouteOrderJson = JsonSerializer.Serialize(r.BestRouteOrder),
+                TotalDistanceKm = r.TotalDistance,
+                ExecutionTimeMs = r.ExecutionTimeMs,
+                RelativeGapPercent = r.RelativeGapPercent,
+                RouteCoordinatesJson = JsonSerializer.Serialize(r.RouteCoordinates)
+            }).ToList()
+        });
 
         return new CompareOptimizationResponse { Results = results };
     }
