@@ -73,4 +73,59 @@ public class TwoOptEngineTests
 
         twoOptDistance.Should().BeLessThanOrEqualTo(nnDistance + 1e-6);
     }
+
+    /// <summary>
+    /// Asymmetric cost matrix (OSRM road distances): reversing a segment also flips its internal
+    /// edges, so a delta built only from the boundary edges reports a distance that belongs to no
+    /// actual route - and can make a move and its inverse look improving forever.
+    /// </summary>
+    [Fact]
+    public void Solve_OnAsymmetricMatrices_ReportsTheCostOfTheReturnedTour()
+    {
+        var random = new Random(20261109);
+        var engine = new TwoOptEngine();
+        var nn = new NearestNeighborEngine();
+
+        for (int trial = 0; trial < 200; trial++)
+        {
+            int n = random.Next(4, 15);
+            var matrix = AsymmetricMatrix(n, random);
+
+            var (tour, distance) = engine.Solve(matrix, fixedStartCity: 0);
+
+            tour.Should().HaveCount(n).And.OnlyHaveUniqueItems();
+            tour[0].Should().Be(0);
+            distance.Should().BeApproximately(PathMath.PathDistance(tour, matrix), 1e-9);
+
+            var (_, nnDistance) = nn.Solve(matrix, fixedStartCity: 0);
+            distance.Should().BeLessThanOrEqualTo(nnDistance + 1e-6);
+        }
+    }
+
+    [Fact]
+    public void Solve_OnAsymmetricMatrix_AccountsForTheReversedInnerEdges()
+    {
+        // Going "up" the indices is cheap, coming back down is expensive: any reversal of an
+        // inner segment is costly, so a boundary-only delta would misjudge the move.
+        int n = 6;
+        var matrix = new double[n, n];
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                matrix[i, j] = i == j ? 0 : (j > i ? 10 : 500);
+
+        var (tour, distance) = new TwoOptEngine().Solve(matrix, fixedStartCity: 0);
+
+        distance.Should().BeApproximately(PathMath.PathDistance(tour, matrix), 1e-9);
+        tour.Should().Equal(new[] { 0, 1, 2, 3, 4, 5 });
+        distance.Should().Be(50);
+    }
+
+    private static double[,] AsymmetricMatrix(int n, Random random)
+    {
+        var matrix = new double[n, n];
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                matrix[i, j] = i == j ? 0 : Math.Round(random.NextDouble() * 10_000, 3);
+        return matrix;
+    }
 }

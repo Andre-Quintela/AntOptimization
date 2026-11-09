@@ -1,0 +1,41 @@
+<div class="panel-section">
+  <div class="ds-row-between">
+    <div class="section-title ds-no-margin">
+      <i class="bi bi-clock-history"></i>
+      <span>Histórico</span>
+    </div>
+    <div class="ds-actions">
+      <button class="btn btn-sm btn-ghost" title="Atualizar" (click)="refresh.emit()">
+        <i class="bi bi-arrow-clockwise" [class.spin]="loading"></i>
+      </button>
+      <button class="btn btn-sm btn-ghost" title="Exportar todos os jobs (ZIP)" [disabled]="jobs.length === 0" (click)="exportAll.emit()">
+        <i class="bi bi-file-earmark-zip"></i> Tudo
+      </button>
+    </div>
+  </div>
+
+  <p class="ds-hint" *ngIf="jobs.length === 0 && !loading">Nenhum dataset gerado ainda.</p>
+
+  <ul class="ds-job-list">
+    <li *ngFor="let job of jobs; trackBy: trackById"
+        class="ds-job-item"
+        [class.selected]="job.id === selectedJobId"
+        (click)="select.emit(job)">
+      <div class="ds-row-between">
+        <strong class="ds-job-name">{{ job.name || ('Job ' + job.id.substring(0, 8)) }}</strong>
+        <span class="ds-status" [attr.data-status]="job.status">
+          <i class="bi bi-arrow-repeat spin" *ngIf="isActive(job)"></i>
+          {{ statusLabels[job.status] }}
+        </span>
+      </div>
+      <div class="ds-job-meta">
+        {{ job.createdAt | date:'dd/MM/yyyy HH:mm' }} ·
+        {{ job.instanceCount }} inst. · {{ pointCountLabel(job) }} ·
+        {{ job.configurationCount }} configs · {{ job.distanceSource }}
+      </div>
+      <div class="ds-progress-track" *ngIf="isActive(job)">
+        <div class="ds-progress-fill" [style.width.%]="job.progressPercent"></div>
+      </div>
+    </li>
+  </ul>
+</div>

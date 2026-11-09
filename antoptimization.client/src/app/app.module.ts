@@ -11,6 +11,11 @@ import { PointsListComponent } from './components/points-list/points-list.compon
 import { SearchBoxComponent } from './components/search-box/search-box.component';
 import { MapPageComponent } from './pages/map-page/map-page.component';
 import { DashboardPageComponent } from './pages/dashboard-page/dashboard-page.component';
+import { DatasetPageComponent } from './pages/dataset-page/dataset-page.component';
+import { DatasetConfigFormComponent } from './components/dataset/dataset-config-form/dataset-config-form.component';
+import { DatasetHistoryComponent } from './components/dataset/dataset-history/dataset-history.component';
+import { DatasetJobProgressComponent } from './components/dataset/dataset-job-progress/dataset-job-progress.component';
+import { DatasetResultsComponent } from './components/dataset/dataset-results/dataset-results.component';
 
 @NgModule({
   declarations: [
@@ -20,7 +25,12 @@ import { DashboardPageComponent } from './pages/dashboard-page/dashboard-page.co
     PointsListComponent,
     SearchBoxComponent,
     MapPageComponent,
-    DashboardPageComponent
+    DashboardPageComponent,
+    DatasetPageComponent,
+    DatasetConfigFormComponent,
+    DatasetHistoryComponent,
+    DatasetJobProgressComponent,
+    DatasetResultsComponent
   ],
   imports: [
     BrowserModule, HttpClientModule,

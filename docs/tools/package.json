@@ -1,0 +1,11 @@
+{
+  "name": "tcc-docs-tools",
+  "private": true,
+  "description": "Gera o artigo do TCC (docs/TCC_AntRoute_Artigo.docx)",
+  "scripts": {
+    "build": "node build_tcc.js"
+  },
+  "dependencies": {
+    "docx": "9.5.1"
+  }
+}

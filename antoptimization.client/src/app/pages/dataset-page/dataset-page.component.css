@@ -1,0 +1,159 @@
+/* ========== LAYOUT ========== */
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.content-wrapper {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.left-panel {
+  width: 360px;
+  min-width: 300px;
+  background: white;
+  border-right: 1px solid var(--color-gray-200);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.left-panel::-webkit-scrollbar { width: 4px; }
+.left-panel::-webkit-scrollbar-thumb { background: var(--color-gray-300); border-radius: 4px; }
+
+.ds-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.ds-map {
+  position: relative;
+  height: 42%;
+  min-height: 240px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.ds-map app-map-view,
+.ds-map ::ng-deep .map-container-inner {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ds-map-drawing ::ng-deep .leaflet-container { cursor: crosshair; }
+
+.ds-map-legend {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 500;
+  background: white;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+}
+
+.ds-legend-line {
+  display: inline-block;
+  width: 22px;
+  border-top: 3px dashed var(--color-success);
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.ds-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--color-gray-50);
+}
+
+.ds-results::-webkit-scrollbar { width: 4px; }
+.ds-results::-webkit-scrollbar-thumb { background: var(--color-gray-300); border-radius: 4px; }
+
+/* ========== TABS ========== */
+
+.ds-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-gray-200);
+  flex-shrink: 0;
+}
+
+.ds-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  color: var(--color-gray-500);
+  font-family: var(--font-family);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.ds-tab:hover { color: var(--color-gray-800); }
+.ds-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+
+.badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-gray-500);
+  background: var(--color-gray-100);
+  padding: 1px 8px;
+  border-radius: 100px;
+}
+
+.ds-region-info {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-success);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ========== EMPTY STATE ========== */
+
+.empty-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  text-align: center;
+}
+
+.empty-results .empty-icon { font-size: 2.6rem; color: var(--color-gray-300); margin-bottom: 12px; }
+.empty-results .empty-title { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--color-gray-500); }
+.empty-results .empty-hint { font-size: 0.88rem; color: var(--color-gray-400); margin-top: 8px; max-width: 420px; }
+
+/* ========== RESPONSIVE ========== */
+
+@media (max-width: 768px) {
+  .content-wrapper { flex-direction: column; overflow-y: auto; }
+  .left-panel { width: 100%; min-width: unset; max-height: none; overflow: visible; border-right: none; }
+  .ds-main { overflow: visible; }
+  .ds-map { height: 320px; }
+  .ds-results { overflow: visible; padding: 16px; }
+}

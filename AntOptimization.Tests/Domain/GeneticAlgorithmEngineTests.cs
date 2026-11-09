@@ -81,4 +81,38 @@ public class GeneticAlgorithmEngineTests
         bestTour.Should().OnlyHaveUniqueItems();
         bestTour.Should().HaveCount(FourCityMatrix.GetLength(0));
     }
+
+    [Fact]
+    public void Solve_WithSameSeed_IsReproducible()
+    {
+        var random = new Random(7);
+        int n = 12;
+        var matrix = new double[n, n];
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                matrix[i, j] = i == j ? 0 : Math.Round(random.NextDouble() * 500 + 1, 3);
+
+        var first = new GeneticAlgorithmEngine(QuickParameters, seed: 1234).Solve(matrix, fixedStartCity: 0);
+        var second = new GeneticAlgorithmEngine(QuickParameters, seed: 1234).Solve(matrix, fixedStartCity: 0);
+
+        second.BestTour.Should().Equal(first.BestTour);
+        second.BestDistance.Should().Be(first.BestDistance);
+    }
+
+    [Fact]
+    public void Solve_WithDifferentSeeds_ExploresDifferentSolutions()
+    {
+        var random = new Random(11);
+        int n = 14;
+        var matrix = new double[n, n];
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                matrix[i, j] = i == j ? 0 : Math.Round(random.NextDouble() * 500 + 1, 3);
+
+        var tours = Enumerable.Range(0, 5)
+            .Select(seed => string.Join(',', new GeneticAlgorithmEngine(QuickParameters, seed).Solve(matrix, 0).BestTour))
+            .ToList();
+
+        tours.Distinct().Should().HaveCountGreaterThan(1);
+    }
 }

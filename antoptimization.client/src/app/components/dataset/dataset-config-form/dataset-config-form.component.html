@@ -1,0 +1,105 @@
+<div class="panel-section">
+  <div class="section-title">
+    <i class="bi bi-boxes"></i>
+    <span>Instâncias</span>
+  </div>
+
+  <label class="ds-field">
+    <span class="ds-label">Nome (opcional)</span>
+    <input class="ds-input" type="text" maxlength="200" placeholder="Ex.: BH centro 8 pontos"
+           [(ngModel)]="name" (ngModelChange)="onChange()" />
+  </label>
+
+  <p class="ds-hint">
+    Cada instância é um <strong>novo sorteio de pontos</strong> na região, com seu próprio ótimo exato.
+    Cada uma executa todas as configurações da grade × as repetições.
+  </p>
+
+  <label class="ds-field">
+    <span class="ds-label">Tamanhos das instâncias <small>· nº de pontos, separados por vírgula</small></span>
+    <input class="ds-input ds-mono" type="text" placeholder="6, 8, 10, 12"
+           [class.ds-input-error]="pointCountsError"
+           [(ngModel)]="pointCountsText" (ngModelChange)="onChange()" />
+    <span class="ds-error-text" *ngIf="pointCountsError">{{ pointCountsError }}</span>
+  </label>
+
+  <div class="ds-grid-2">
+    <label class="ds-field">
+      <span class="ds-label">Instâncias por tamanho</span>
+      <input class="ds-input" type="number" min="1" [(ngModel)]="instancesPerPointCount" (ngModelChange)="onChange()" />
+    </label>
+    <label class="ds-field">
+      <span class="ds-label">Repetições / config.</span>
+      <input class="ds-input" type="number" min="1" [(ngModel)]="repetitions" (ngModelChange)="onChange()" />
+    </label>
+    <label class="ds-field">
+      <span class="ds-label">Semente mestre</span>
+      <input class="ds-input" type="number" placeholder="Aleatória" [(ngModel)]="masterSeed" (ngModelChange)="onChange()" />
+    </label>
+  </div>
+
+  <label class="ds-field">
+    <span class="ds-label">Matriz de custos</span>
+    <select class="ds-input" [(ngModel)]="distanceSource" (ngModelChange)="onChange()">
+      <option value="Osrm">OSRM — distância real pelas vias</option>
+      <option value="Haversine">Haversine — linha reta</option>
+    </select>
+  </label>
+
+  <label class="ds-check">
+    <input type="checkbox" [(ngModel)]="fixedStart" (ngModelChange)="onChange()" />
+    <span>Início fixo no ponto 1 (ACO e ótimo exato)</span>
+  </label>
+</div>
+
+<div class="panel-section">
+  <div class="section-title">
+    <i class="bi bi-sliders2"></i>
+    <span>Hiperparâmetros do ACO</span>
+  </div>
+  <p class="ds-hint">Valores separados por vírgula. Todas as combinações serão testadas em cada instância.</p>
+
+  <label class="ds-field" *ngFor="let field of gridFields">
+    <span class="ds-label">{{ field.label }} <small>· {{ field.hint }}</small></span>
+    <input class="ds-input ds-mono" type="text"
+           [class.ds-input-error]="gridErrors[field.key]"
+           [(ngModel)]="gridText[field.key]" (ngModelChange)="onChange()" />
+    <span class="ds-error-text" *ngIf="gridErrors[field.key]">{{ gridErrors[field.key] }}</span>
+  </label>
+</div>
+
+<div class="panel-section">
+  <div class="section-title">
+    <i class="bi bi-calculator"></i>
+    <span>Estimativa</span>
+    <i class="bi bi-arrow-repeat spin" *ngIf="estimating"></i>
+  </div>
+
+  <p class="ds-hint" *ngIf="!region">Selecione uma região no mapa para estimar o custo.</p>
+  <p class="ds-error-text" *ngIf="estimateError">{{ estimateError }}</p>
+
+  <ng-container *ngIf="estimate && region">
+    <p class="ds-hint" *ngIf="instanceBreakdown">{{ instanceBreakdown }}</p>
+
+    <div class="ds-stats" *ngIf="estimate.isValid">
+      <div class="ds-stat"><span>Conjuntos de pontos</span><strong>{{ estimate.totalInstances }}</strong></div>
+      <div class="ds-stat"><span>Configurações</span><strong>{{ estimate.configurationCount }}</strong></div>
+      <div class="ds-stat"><span>Execuções do ACO</span><strong>{{ formatNumber(estimate.totalRuns) }}</strong></div>
+      <div class="ds-stat"><span>Ótimo exato</span><strong>{{ estimate.exactMethod === 'HeldKarp' ? 'Held-Karp' : 'Força bruta' }}</strong></div>
+      <div class="ds-stat"><span>Operações/instância <small>(maior n)</small></span><strong>{{ formatNumber(estimate.exactOperationsPerInstance) }}</strong></div>
+      <div class="ds-stat ds-stat-wide"><span>Tempo estimado</span><strong>{{ formatDuration(estimate.estimatedTotalSeconds) }}</strong></div>
+    </div>
+
+    <ul class="ds-messages ds-messages-error" *ngIf="estimate.errors.length">
+      <li *ngFor="let error of estimate.errors"><i class="bi bi-x-octagon"></i> {{ error }}</li>
+    </ul>
+    <ul class="ds-messages ds-messages-warning" *ngIf="estimate.warnings.length">
+      <li *ngFor="let warning of estimate.warnings"><i class="bi bi-exclamation-triangle"></i> {{ warning }}</li>
+    </ul>
+  </ng-container>
+
+  <button class="btn btn-primary btn-block" [disabled]="!canSubmit" (click)="submit()">
+    <ng-container *ngIf="!submitting"><i class="bi bi-play-fill"></i> Gerar dataset</ng-container>
+    <ng-container *ngIf="submitting"><i class="bi bi-arrow-repeat spin"></i> Enviando...</ng-container>
+  </button>
+</div>

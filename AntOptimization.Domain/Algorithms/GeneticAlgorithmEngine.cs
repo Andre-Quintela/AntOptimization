@@ -3,11 +3,16 @@ namespace AntOptimization.Domain.Algorithms;
 public class GeneticAlgorithmEngine
 {
     private readonly GeneticAlgorithmParameters _parameters;
-    private readonly Random _random = new();
+    private readonly Random _random;
 
-    public GeneticAlgorithmEngine(GeneticAlgorithmParameters parameters)
+    /// <param name="seed">
+    /// Optional seed. Without it the run is not reproducible, which is fine for the interactive
+    /// application; experiments pass a seed so that a run can be repeated exactly.
+    /// </param>
+    public GeneticAlgorithmEngine(GeneticAlgorithmParameters parameters, int? seed = null)
     {
         _parameters = parameters;
+        _random = seed.HasValue ? new Random(seed.Value) : new Random();
     }
 
     public (List<int> BestTour, double BestDistance) Solve(double[,] distanceMatrix, int? fixedStartCity = null)

@@ -228,6 +228,10 @@
                 (click)="goToDashboard()">
           <i class="bi bi-bar-chart-line"></i> Comparar Algoritmos
         </button>
+        <button class="btn btn-block btn-outline-compare"
+                (click)="goToDataset()">
+          <i class="bi bi-database-gear"></i> Gerar dataset (ML)
+        </button>
       </div>
 
       <div class="alert alert-danger" *ngIf="errorMessage">

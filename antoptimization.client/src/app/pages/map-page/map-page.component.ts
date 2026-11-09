@@ -138,6 +138,10 @@ export class MapPageComponent implements AfterViewInit, OnDestroy {
     this.router.navigate(['/dashboard']);
   }
 
+  goToDataset(): void {
+    this.router.navigate(['/dataset']);
+  }
+
   goToMyLocation(): void {
     if (!('geolocation' in navigator)) return;
     this.locating = true;

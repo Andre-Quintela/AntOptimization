@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Datasets gerados localmente (grandes; reproduziveis pelas sementes em metadata.json)
+/datasets/

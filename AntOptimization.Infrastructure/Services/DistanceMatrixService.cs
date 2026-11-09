@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using AntOptimization.Domain.Exceptions;
 using AntOptimization.Domain.Interfaces;
 using AntOptimization.Domain.Models;
 
@@ -35,6 +36,9 @@ public class DistanceMatrixService : IDistanceMatrixService
             var row = distances[i];
             for (int j = 0; j < n; j++)
             {
+                if (row[j].ValueKind != JsonValueKind.Number)
+                    throw new UnreachableLocationException(i, j);
+
                 matrix[i, j] = row[j].GetDouble();
             }
         }

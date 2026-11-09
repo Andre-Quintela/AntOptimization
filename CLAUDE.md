@@ -17,6 +17,7 @@ AntOptimization.Infrastructure → External integrations: OSRM routing client
 AntOptimization.IoC          → Dependency injection wiring
 AntOptimization.Server       → ASP.NET Core API + SPA host
 AntOptimization.Tests        → xUnit test suite
+AntOptimization.Benchmark    → Console runner for the algorithm-comparison experiment (TCC section 3.7)
 antoptimization.client/      → Angular 18 frontend (SPA)
 ```
 
@@ -52,6 +53,8 @@ Four optimization algorithms are implemented and compared:
 | **Nearest Neighbor** | `NearestNeighborEngine` | Greedy constructive | Baseline |
 | **2-Opt** | `TwoOptEngine` | Local search | Refinement |
 | **Genetic Algorithm** | `GeneticAlgorithmEngine` | Evolutionary | Alternative |
+
+`ACOEngine` and `GeneticAlgorithmEngine` take an optional seed (`new GeneticAlgorithmEngine(parameters, seed)`); without it the run is not reproducible, which is what the interactive app uses. Experiments always pass a seed.
 
 ### ACO Default Parameters (`ACOParameters`)
 - `NumberOfAnts`: 20
@@ -89,6 +92,47 @@ Deposit:   τ += 1 / tourDistance
 6. **ACO best distance is monotonically non-decreasing** — it never gets worse across iterations.
 7. **Visual mode** adds a 50ms artificial delay between iteration events for smooth streaming UX.
 8. **Comparison runs all 4 algorithms** on the same distance matrix sequentially and measures wall-clock execution time per algorithm.
+9. **All engines optimize an open path** (no return to the start city). Exact solvers (`BruteForceEngine`, `HeldKarpEngine`) use the same objective and support asymmetric (OSRM) matrices.
+10. **OSRM requires a `User-Agent`** — the public server answers 403 without one (set on the `HttpClient` in IoC).
+11. **2-opt moves must use the exact delta on asymmetric matrices.** Reversing `tour[i+1..j]` flips every inner edge, and `d[y,x] != d[x,y]` with OSRM, so `TwoOptEngine.TwoOptDelta` adds the reversed-inner-edge difference to the two boundary edges and `Solve` recomputes the final distance from the tour. The symmetric boundary-only formula corrupts the running distance, can report a distance below the exact optimum, and lets a move and its inverse loop forever.
+12. **No baseline may beat the exact optimum.** `NearestNeighbor` and `2-opt` solve the same open path on the same matrix, so `DatasetJobRunner.ValidateBaselines` fails the instance when either is below `OptimalDistanceM` (tolerance `OptimumTolerance × max(1, optimum)`) instead of letting it into the dataset.
+
+---
+
+## Dataset Generation Module (ML of ACO hyperparameters)
+
+Generates experimental data to later train a model that recommends ACO hyperparameters per TSP instance. UI at `/dataset` (`DatasetPageComponent`).
+
+**A job covers several instance sizes.** `PointCounts` (e.g. `[6, 8, 10, 12]`) × `InstancesPerPointCount` gives the total `InstanceCount`; each instance is an independent point draw in the same region, carries its own `PointCount` and its own exact optimum, and runs the whole grid × repetitions. Instances are laid out size by size with a contiguous `Index` (`(JobId, Index)` is unique).
+
+**Pipeline per job** (`DatasetJobRunner`, executed one job at a time by `DatasetGenerationWorker` from `DatasetJobQueue`), per instance:
+region (rectangle) → `instance.PointCount` random points (`RandomPointGenerator`, seeded) → cost matrix (OSRM or Haversine, rounded to mm; regenerated up to `MaxGenerationAttempts` if unreachable) → `InstanceFeatureExtractor` → exact optimum (`ExactSolver`: brute force ≤ `BruteForceMaxPoints`, Held-Karp ≤ `MaxExactPoints`, with timeout) → `ValidateBaselines` invariant check → every grid config × repetitions via `ACOEngine(params, seed).SolveWithMetrics` → instance + runs saved atomically.
+
+- **Seeds** are derived deterministically (`SeedDerivation`, FNV-1a) from the job's master seed → fully reproducible.
+- **Persistence**: SQLite + EF Core (`AntOptimizationDbContext`, migrations in `Infrastructure/Persistence/Migrations`, applied at startup). DB path: `ConnectionStrings:Dataset`, else `%HOME%/data` on Azure, else `App_Data` next to the binaries. Tables: `DatasetJobs` → `DatasetInstances` (features as owned columns) → `AcoRuns`.
+- **Distances stored in meters**, features in km. Gap = `(aco − optimum) / optimum × 100`.
+- **Limits** in `appsettings.json` → `DatasetGeneration` (`DatasetOptions`). Startup marks `Running` jobs as `Interrupted`; resume re-processes `Pending`/`Failed` instances only.
+- **Export** (`DatasetExportService`): `runs.csv` (main training table), `instances.csv`, `configs_summary.csv`, or ZIP with `metadata.json`. `point_count` is an instance key column in every CSV (and is excluded from the reflected `InstanceFeatures` columns so no CSV header repeats it); `metadata.json` records `pointCounts` + `instancesPerPointCount`. Split train/test grouped by `instance_id`.
+- **Generated dataset**: `datasets/vitoria-es/` (gitignored, 265 MB) — 330 instances, n = 5..15, 320,760 runs over Grande Vitória/ES with OSRM distances; see its `README.md`. Reproducible from the master seeds in `metadata.json`.
+- **Article figure**: `docs/tools/fig_sens.py` builds the β × ρ gap heat map for the TCC from `runs.csv`.
+- New migration: `dotnet ef migrations add <Name> --project AntOptimization.Infrastructure --startup-project AntOptimization.Infrastructure --output-dir Persistence/Migrations`
+
+Endpoints (base `/api/datasets`): `POST /estimate`, `POST /jobs`, `GET /jobs`, `GET /jobs/{id}`, `GET /jobs/{id}/instances`, `GET /jobs/{id}/instances/{iid}/runs`, `GET /jobs/{id}/configs`, `POST /jobs/{id}/cancel|resume`, `DELETE /jobs/{id}`, `GET /jobs/{id}/export?level=Runs|Instances|Configs|Zip`, `GET /export?level=...`. Enums are serialized as strings.
+
+Frontend: child components in `components/dataset/` have no own CSS; shared styles live in `pages/dataset-page/dataset-module.css` (global, scoped to `app-dataset-page`, registered in `angular.json`).
+
+---
+
+## Comparison Experiment (`AntOptimization.Benchmark`)
+
+Console runner behind Table 1 of the article: the same instances solved by all four engines over one cost matrix, with wall-clock timing.
+
+```bash
+dotnet run -c Release --project AntOptimization.Benchmark -- --out datasets/comparacao
+# --sizes 10,15,30,50  --instances 10  --reps 10  --seed 20251109  --haversine  --osrm-delay 1000
+```
+
+Points, ACO seeds and GA seeds all derive from the master seed (`SeedDerivation`), so a re-run reproduces the numbers exactly. Every engine is warmed up once before timing (otherwise the first measured size pays for JIT). Gap reference is the exact optimum when n ≤ `MaxExactPoints`, else the best distance found on the instance. Outputs to `datasets/comparacao/` (gitignored): `runs.csv`, `instances.csv`, `summary.csv`, `convergence.csv` (feeds `docs/tools/fig_conv.py`) and `metadata.json`.
 
 ---
 
